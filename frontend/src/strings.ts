@@ -1,55 +1,102 @@
 /**
- * What a domain must say about itself for these components to render.
+ * The words a domain supplies, and the context that gets them to a component without threading
+ * a prop through six layers.
  *
- * The measured finding this exists for: a fork of the reference app for a different corpus
- * diverged on the frontend ALMOST ENTIRELY IN STRINGS. `git diff -- frontend/src/styles/`
- * between the two repos was empty — colour themes turned out not to be domain-specific at all,
- * which killed the idea of per-domain themes before it was built.
+ * ## The measurement this is built on
  *
- * So the boundary is: components are shared, words are not. The tell that a fork has not really
- * been generalised is a tab labelled "Deal Terms" in a health-claims application, which is
- * exactly what the first one shipped.
+ * A fork of the reference application for a health-claims corpus was diffed against it, file by
+ * file: **6,202 shared lines, 425 of them different — 6.9%**. `types.ts` (477 lines),
+ * `charts.tsx`, `Term.tsx`, `LoopDiagram.tsx` and `ExplainerPanel.tsx` were byte-identical.
+ * `MatterCard.tsx` (268 lines) differed by nothing at all, and `DealTerms.tsx` by two lines,
+ * both of them renames done later in the original. They are `RecordCard` and `Rollup` here.
  *
- * ## Why an interface rather than a translation file
+ * That number is the whole argument. These are not legal components that need generalising;
+ * they are platform components that were shipped with one corpus's nouns baked in, and the fork
+ * kept the nouns because changing them was manual. A claims application with a tab called "Deal
+ * Terms" is not evidence that the tab is legal — it is evidence that nobody could rename it
+ * without editing code.
  *
- * A key that a domain forgets is a `undefined` rendered into the page. An interface makes the
- * omission a type error at build time, in the domain repo, before anyone sees it. There is no
- * fallback text on purpose — a default like "record" that silently survives into a legal
- * product is worse than a build failure.
+ * ## Why a registry and not props or context
+ *
+ * Passing `strings` down through every view to every row is 6,000 lines of signature churn to
+ * move a noun. Context avoids that but makes every render site — including every test that
+ * renders one component — responsible for supplying a provider, which is 100+ wrappers for a
+ * value that is constant for the life of the process.
+ *
+ * There is exactly ONE set of strings per application and it never changes at runtime, so it is
+ * registered once at startup. `useStrings` still throws when nothing has registered: a default
+ * noun rendering silently into a real product reads as a data bug rather than as a missing
+ * call, and that is the failure this is here to prevent.
  */
 
 export interface QuorumStrings {
-  /** The application's own name, for the header and the document title. */
+  /** The application's own name. */
   readonly appName: string
+  /** One line saying what the corpus is. */
+  readonly corpusDescription: string
 
-  /** One row of the corpus. "matter", "claim", "citation". Lowercase, singular. */
+  /** One row of the corpus: "matter", "claim", "citation". Lowercase singular. */
   readonly record: string
-  /** Plural of `record`. Not derived — English plurals are not a function you can write. */
+  /** Plural. Not derived — English plurals are not a function you can write. */
   readonly records: string
 
-  /** What every question is about. "deal point", "claim finding", "violation". */
+  /** What questions are about: "deal point", "claim finding", "violation". */
   readonly subject: string
   readonly subjects: string
 
-  /** How a user says `records` in conversation, which is often not what is counted. On the
-   *  reference corpus a lawyer says "deals" while the count is over "agreements". */
+  /**
+   * How a user says `records` in conversation, which is often not what is counted. A partner
+   * says "deals" while the thing being counted is "agreements"; collapsing the two puts the
+   * wrong noun in half the sentences on the page.
+   */
   readonly colloquial: string
 
-  /** Tab labels and hints, keyed by the platform's generic tab id. A domain renames the
-   *  LABEL freely — "Deal Terms", "Findings", "Violations" — while the id stays generic. */
-  readonly tabs: Readonly<Record<TabId, { readonly label: string; readonly hint: string }>>
+  /**
+   * What a fact's source text is called. "clause" in a contracts corpus, "note" in a clinical
+   * one. It labels the toggle that reveals the quoted span, so a wrong word here tells the
+   * reader they are looking at something they are not.
+   */
+  readonly sourceText: string
 
-  /** One line under the app name saying what the corpus is. */
-  readonly corpusDescription: string
+  /** An example question, for the Ask placeholder. The one string here that is genuinely
+   *  content rather than vocabulary — a bad example teaches the wrong thing about the corpus. */
+  readonly exampleQuestion: string
+
+  /** Tab labels and hints, keyed by the platform's generic id. */
+  readonly tabs: Readonly<Record<TabId, { readonly label: string; readonly hint: string }>>
 }
 
 /**
- * The tabs, by what they DO rather than by what one corpus calls them.
+ * The tabs, named by what they DO.
  *
- * `terms` was `deal-terms`, which shipped into a health-claims fork and stayed there — the id
- * is in URLs, in tests and in keyboard shortcuts, so it outlives the label that was renamed.
- * An id is the part nobody thinks to change, which is why it is the part that has to be generic.
+ * `terms` was `deal-terms`, and that id shipped into the health-claims fork and stayed there.
+ * An id lives in URLs, tests and key bindings, so it outlives the label somebody remembered to
+ * rename — which is exactly why the id is the part that has to be generic.
  */
 export const TAB_IDS = ['overview', 'ask', 'explore', 'terms', 'trust', 'label'] as const
 
 export type TabId = (typeof TAB_IDS)[number]
+
+let registered: QuorumStrings | null = null
+
+/** Called once at startup with the domain's own words. */
+export function configureStrings(strings: QuorumStrings): void {
+  registered = strings
+}
+
+/**
+ * The domain's words. Throws when nothing has registered them rather than falling back.
+ *
+ * No defaults on purpose. A fallback like "record" renders silently into a legal product and
+ * reads as a bug in the data; a thrown error is found the first time anyone opens the page.
+ */
+export function useStrings(): QuorumStrings {
+  if (!registered) {
+    throw new Error(
+      'configureStrings() has not been called. Every shared component reads the domain\'s ' +
+        'nouns from it, and there is deliberately no fallback: a default noun rendered into a ' +
+        'real product reads as a data bug rather than as missing configuration.',
+    )
+  }
+  return registered
+}

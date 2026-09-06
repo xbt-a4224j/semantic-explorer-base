@@ -20,7 +20,7 @@ import { useEffect, useRef } from 'react'
  *
  * Effects get an `AbortController` from their own cleanup; a click handler has no cleanup to
  * hang one on, which is why `QueryBuilder` had no cancel handling at all and `Tables`'
- * row-expand and `DealTerms`' drill-through were unguarded. Calling the returned function
+ * row-expand and the rollup's drill-through were unguarded. Calling the returned function
  * aborts whatever the previous click started — latest-click-wins, so a fast double-click
  * cannot render the older response — and unmounting aborts the outstanding one.
  *

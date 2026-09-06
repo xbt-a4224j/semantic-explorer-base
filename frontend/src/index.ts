@@ -1,31 +1,66 @@
 /**
- * The platform's frontend surface: design tokens, and the components that are about the SHAPE
- * of an answer rather than about any corpus.
+ * The platform's frontend: design tokens, the shared types, and the components and views that
+ * are about the SHAPE of an answer rather than about any corpus.
  *
- * ## What is here, and the measurement behind it
+ * ## What decided the boundary
  *
- * A fork of the reference app for a different corpus diverged on the frontend ALMOST ENTIRELY
- * IN STRINGS. One thing that measurement killed outright: `git diff -- frontend/src/styles/`
- * between the two repos was EMPTY, so per-domain colour themes — which had been assumed —
- * turned out to be a feature nobody needed. `tokens.css` ships here as one palette.
+ * A file-by-file diff of the reference application against a fork of it for a health-claims
+ * corpus: **6,202 shared lines, 425 different — 6.9%**.
  *
- * The mechanism colours travel with it deliberately. `--mech-governed`, `--mech-exact` and
- * `--mech-meaning` encode WHICH MECHANISM produced a figure — the semantic layer, literal term
- * matching, or embeddings — and that is platform semantics, not decoration. A domain that
- * re-picked those colours would be re-deciding what a reader is being told.
+ *     types.ts            477 lines    0 differing
+ *     charts.tsx          355 lines    0
+ *     MatterCard.tsx      268 lines    0
+ *     Term.tsx             80 lines    0
+ *     DealTerms.tsx       256 lines    2   (both renames made later in the original)
+ *     FacetRail.tsx        88 lines    2   ("matters" -> "claims")
+ *     Explore.tsx         386 lines   13
  *
- * ## What is deliberately NOT here yet
+ * That is the argument for moving them, and it is the opposite of what a word-count suggests.
+ * Counting legal TERMS in these files says they are deeply domain-coupled — `MatterCard` has 60.
+ * But the fork needed to change none of them to serve a completely different corpus. It kept
+ * every one, and shipped a claims application with a tab labelled "Deal Terms", because
+ * changing a noun meant editing code.
  *
- * The views. `MatterCard`, `Explore` and `DealTerms` carry 60, 42 and 39 references to legal
- * vocabulary, most of it prose inside JSX rather than labels a `strings` object can supply.
- * Moving them is real work; moving them badly ships a legal product that reads like a generic
- * one, which is worse than a slower split. `QuorumStrings` is the contract they will move onto.
+ * So the legal words in these files were never a coupling. They were a defect that a strings
+ * contract fixes, and counting them was measuring the wrong thing.
+ *
+ * ## What stays with the domain
+ *
+ * The narrative. `Ask.tsx` (190 of 377 lines differing), `Overview.tsx` (44 of 207),
+ * `journeys.ts` (30 of 105) and `overviewDiagrams.tsx` (18 of 249) are the pages that explain
+ * what THIS corpus is and why it is worth querying. Those genuinely differ per domain, and a
+ * shared version would be a worse page for both.
  */
 
+// ── design system ────────────────────────────────────────────────────────────────────────
+export { configureStrings, TAB_IDS, useStrings } from './strings'
+export type { QuorumStrings, TabId } from './strings'
+
+// ── primitives ───────────────────────────────────────────────────────────────────────────
 export { ResultsSkeleton } from './components/Skeleton'
 export { SessionCost } from './components/SessionCost'
-export { RoutingDiagram } from './components/RoutingDiagram'
+export { GLOSSARY, Term } from './components/Term'
+export { ExplainerPanel } from './components/ExplainerPanel'
 export { formatLatency, formatTokens, formatUsd } from './components/usage'
 export { ignoreAbort, isAbortError, useAbortOnUnmount } from './components/abort'
-export { TAB_IDS } from './strings'
-export type { QuorumStrings, TabId } from './strings'
+export { useKeyboard } from './useKeyboard'
+
+// ── charts and diagrams ──────────────────────────────────────────────────────────────────
+export { BarChart, ChartFrame, Legend, StackedBar, StatTiles } from './components/charts'
+export { LoopDiagram } from './components/LoopDiagram'
+export { RoutingDiagram } from './components/RoutingDiagram'
+
+// ── the product's own shapes ─────────────────────────────────────────────────────────────
+export { RecordCard } from './components/RecordCard'
+export { FacetRail } from './components/FacetRail'
+export { AskBox } from './components/AskBox'
+export { Grading } from './components/Grading'
+export { IngestStatus, LogViewer } from './components/operator'
+
+// ── views ────────────────────────────────────────────────────────────────────────────────
+export { Rollup } from './views/Rollup'
+export { Explore } from './views/Explore'
+export { Label } from './views/Label'
+export { Trust } from './views/Trust'
+
+export * from './types'
