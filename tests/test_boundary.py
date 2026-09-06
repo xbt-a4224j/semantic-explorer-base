@@ -35,6 +35,14 @@ DOMAIN_WORDS = (
     "merger",
     "acquirer",
     "covenant",
+    # The professional's own name. Missing from this list until a leak got through: the
+    # free-form selection prompt read "You translate a legal analyst's question", a string
+    # literal inside a platform module that no import check could see. The gap was not the
+    # mechanism, it was the vocabulary — so the words for WHO is asking belong here too.
+    "legal",
+    "lawyer",
+    "attorney",
+    "law firm",
     # medical
     "snomed",
     "synthea",
@@ -42,6 +50,8 @@ DOMAIN_WORDS = (
     "icd",
     "comorbid",
     "claimant",
+    "physician",
+    "diagnosis",
 )
 
 #: `matter`, `claim`, `industry` and `contract` are excluded on purpose. They are ordinary

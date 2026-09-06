@@ -253,11 +253,23 @@ def validate_selection(
             raise InvalidSelection(f"{td.get('dimension')!r} is not a known dimension.", selection)
 
 
+#: The free-form selection prompt. This is the FALLBACK path, kept because a question no shape
+#: fits should degrade rather than 500 — measured at 0 of 10 on real questions when it was the
+#: only path, which is what the shaped pipeline replaced.
+#:
+#: `analyst` is the one word a domain changes. It said "a legal analyst's question" here until
+#: the extraction, which the import-boundary test did not catch: a leaked noun inside a string
+#: is invisible to a check that looks at imports.
 SYSTEM_PROMPT = (
-    "You translate a legal analyst's question into a Cube.js query selection. You select from "
+    "You translate {analyst}'s question into a Cube.js query selection. You select from "
     "the provided measure and dimension names only — you never invent a name, and you never "
     "compute or state a number yourself. Return only the selection."
 )
+
+
+def system_prompt(domain: Any = None) -> str:
+    analyst = (getattr(domain, "strings", {}) or {}).get("analyst", "an analyst")
+    return SYSTEM_PROMPT.format(analyst=analyst)
 
 
 #: the one model this codebase calls for selection. Named here rather than inline so the
@@ -282,7 +294,9 @@ class SelectionCall:
     latency_ms: float
 
 
-def select_with_usage(question: str, vocabulary: Vocabulary, api_key: str) -> SelectionCall:
+def select_with_usage(
+    question: str, vocabulary: Vocabulary, api_key: str, domain: Any = None
+) -> SelectionCall:
     """The only function in this module that calls out. Everything else is pure and testable
     with no key."""
     from openai import OpenAI
@@ -298,7 +312,7 @@ def select_with_usage(question: str, vocabulary: Vocabulary, api_key: str) -> Se
     response = client.chat.completions.create(
         model=SELECT_MODEL,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt(domain)},
             {"role": "user", "content": question},
         ],
         response_format={
@@ -324,7 +338,9 @@ def select_with_usage(question: str, vocabulary: Vocabulary, api_key: str) -> Se
     )
 
 
-def select_via_llm(question: str, vocabulary: Vocabulary, api_key: str) -> dict[str, Any]:
+def select_via_llm(
+    question: str, vocabulary: Vocabulary, api_key: str, domain: Any = None
+) -> dict[str, Any]:
     """The selection alone, for callers with nothing to do with the usage — the eval recorder
     grades selections and has no cost line to render."""
-    return select_with_usage(question, vocabulary, api_key).selection
+    return select_with_usage(question, vocabulary, api_key, domain).selection

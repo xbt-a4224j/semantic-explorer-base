@@ -29,14 +29,14 @@ from quorum.cube.client import query as cube_query
 MAX_VOCABULARY = 500
 
 
-def closed_dimensions(meta: dict[str, Any] | None = None) -> frozenset[str]:
+def closed_dimensions(meta: dict[str, Any] | None = None, *, cube_url: str = "") -> frozenset[str]:
     """Members the MODEL declares closed, read live from `/meta`.
 
     Cube surfaces a member's `meta:` block verbatim, so the declaration and the definition
     travel together and cannot drift. `meta` is injectable so this is testable without a
     running Cube.
     """
-    doc = meta if meta is not None else cube_meta()
+    doc = meta if meta is not None else cube_meta(cube_url)
     names: set[str] = set()
     for cube in doc.get("cubes", []):
         for dim in cube.get("dimensions", []):
@@ -45,10 +45,10 @@ def closed_dimensions(meta: dict[str, Any] | None = None) -> frozenset[str]:
     return frozenset(names)
 
 
-def dimension_values(dimension: str) -> list[str]:
+def dimension_values(dimension: str, *, cube_url: str = "") -> list[str]:
     """Distinct non-null values, sorted. Empty when the dimension is not closed."""
-    if dimension not in closed_dimensions():
+    if dimension not in closed_dimensions(cube_url=cube_url):
         return []
-    rows = cube_query({"dimensions": [dimension], "limit": MAX_VOCABULARY + 1})
+    rows = cube_query({"dimensions": [dimension], "limit": MAX_VOCABULARY + 1}, cube_url)
     values = sorted({str(r[dimension]) for r in rows if r.get(dimension) is not None})
     return [] if len(values) > MAX_VOCABULARY else values
