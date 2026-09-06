@@ -10,21 +10,30 @@ refused rather than answered.
 
 ## How a domain consumes it
 
-As a **submodule**, checked out at `platform/` inside the domain repo:
+One command, about a second:
 
 ```bash
-git submodule add git@github.com:xbt-a4224j/semantic-quorum.git platform
-pip install -e platform/          # backend
-# vite.config.ts aliases @quorum -> platform/frontend/src
+make platform-sync      # in the domain repo
 ```
 
-One mechanism for both halves. A pip package plus an npm package would be two package managers,
-two pin formats and two failure modes — and, decisively, `pip install -e ../semantic-quorum`
-cannot work at all here: the domain repos build with `context: .`, so a sibling directory is
-outside the Docker build context and cannot be `COPY`d. A submodule is inside it.
+It builds a wheel from your local `semantic-quorum` checkout, installs it into the domain's venv,
+and writes `platform.lock`. The wheel lands in `vendor/` (gitignored, rebuilt on demand); the lock
+is committed.
 
-The pointer bump is a feature rather than a chore: it records exactly which platform commit a
-domain was demoed against.
+**Why not a submodule.** It was the other candidate and lost on the thing that matters here: a
+submodule lets you edit in place only in the domain you are standing in, and propagating a
+platform change to the *second* domain needs commit, push and pull over the network. This needs
+none of that — edit the platform, uncommitted even, run one command in either domain.
+
+**Why not `pip install -e ../semantic-quorum`.** The domain repos build with `context: .`, so a
+sibling directory is outside the Docker build context and cannot be `COPY`d. It works on a
+laptop and breaks every container build. A wheel written into `vendor/` is inside the context.
+
+**Why the lock is committed and the wheel is not.** Committing wheels versions build artifacts,
+and this project has already lost the ability to push a repo by committing generated files.
+`platform.lock` records the platform commit — and whether its tree was dirty, because a figure
+produced against uncommitted platform code cannot be reproduced by anyone else and that should
+be visible rather than inferred.
 
 ## What a domain provides
 
