@@ -19,11 +19,17 @@ A domain author will get this wrong. `Domain.validate()` catches them being iden
 catch them being swapped. `quorum check` (issue #3) should query both against a known slice and
 warn when the "record" count exceeds the "subject" count, which is almost always the swap.
 
-**The claims Cube model may not have the members its manifest would need.** The manifests in
-`tests/test_domain_and_shape.py` use `findings.question` / `findings.answer` for the health
-domain — those are *plausible*, not verified. claims-explorer's model still uses the legal member
-names (`deal_points.deal_point_name`), because the domain rename was never finished. Verify
-before wiring, or the second domain's manifest is fiction.
+**RESOLVED — the claims manifest was fiction, and the truth was more interesting.**
+claims-explorer's Cube model does still use the legal member names: `deal_points.deal_point_name`
+holds "Duration-Band" and "Comorbidity-Diabetes". The real manifest is written and loads. What
+that demonstrates is worth more than a tidy manifest would have been — the platform never knew
+what a deal point was, so the rename tracked at claims-explorer#1 buys legibility rather than
+function.
+
+It also exposed why those two apps cannot prove domain-independence between them: they share a
+root commit, a schema, and 142 byte-identical files, so a platform that had quietly hardcoded the
+legal member names would pass against both. `tests/fixtures/restaurant-inspections` exists for
+that reason — a third domain sharing no cube, member or vocabulary with either.
 
 ## Decided, with the reasoning, so it is not relitigated
 

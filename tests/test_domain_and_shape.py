@@ -22,14 +22,19 @@ LEGAL = Domain(
     numeric_measures=("deal_points.median_numeric_value",),
 )
 
+# The REAL claims manifest, not a plausible one. The member names look legal in a claims
+# application because the schema and Cube model still carry the names the first domain gave
+# them — `deal_point_name` holds "Duration-Band" here. Stating that rather than inventing
+# tidier names is the point: it shows the platform never knew what a deal point was, and that
+# the rename tracked at claims-explorer#1 buys legibility rather than function.
 HEALTH = Domain(
     name="claims-explorer",
     corpus="synthea-synthetic-claims",
-    subject_axis="findings.question",
-    answer_dimension="findings.answer",
-    count_measure="findings.n",
+    subject_axis="deal_points.deal_point_name",
+    answer_dimension="deal_points.position",
+    count_measure="deal_points.n",
     record_count="comparable_claims.n",
-    numeric_measures=("findings.median_numeric_value",),
+    numeric_measures=("deal_points.median_numeric_value",),
 )
 
 

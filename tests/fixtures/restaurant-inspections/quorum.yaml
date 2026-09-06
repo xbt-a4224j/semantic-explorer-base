@@ -1,0 +1,28 @@
+# A third domain that exists only to prove the platform is domain-independent.
+#
+# clause-explorer and claims-explorer cannot prove it: they share a root commit, a schema, and
+# 142 byte-identical files. claims-explorer's Cube model still uses the LEGAL member names
+# (`deal_points.deal_point_name` holding "Duration-Band"), so a platform that happened to
+# hardcode those names would pass against both and fail on the first genuinely new corpus.
+#
+# Nothing here shares a member name, a cube name or a vocabulary with either. If the platform
+# serves this, it is not carrying either domain around inside it.
+name: Restaurant Inspections
+corpus: city-health-inspections-2024
+
+subject_axis: violations.code
+answer_dimension: violations.severity
+count_measure: violations.n
+record_count: premises.n
+
+numeric_measures:
+  - violations.median_days_to_reinspection
+
+selectable:
+  - premises
+  - violations
+
+strings:
+  record: premises
+  records: premises
+  subject: violation
