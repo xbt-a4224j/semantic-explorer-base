@@ -102,3 +102,4 @@ def selection_for(domain: Domain, shape: str, subject: str | None) -> dict[str, 
 
     # count: how many records, with no subject named.
     return {"measures": [domain.record_count], "dimensions": [], "filters": []}
+# a real platform edit

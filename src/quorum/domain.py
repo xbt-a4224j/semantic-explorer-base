@@ -77,6 +77,18 @@ class Domain:
     #: median evaluates to `4`, which is not a wrong quantity so much as not a quantity.
     numeric_measures: tuple[str, ...] = ()
 
+    #: The cubes and views the agent may select from. Everything else in `/meta` is invisible
+    #: to it — a physical cube the model layer exposes only to be joined through is not a thing
+    #: anyone should be able to ask about, and offering it means offering members whose meaning
+    #: is undefined outside a join.
+    selectable: tuple[str, ...] = ()
+
+    #: Measures present in the model that the agent must never pick. There is usually one: a
+    #: mean kept beside a median so a reader can see they diverge, which the agent selecting it
+    #: would turn into exactly the wrong number. Naming it here beats trimming it from the model,
+    #: because the dashboard still wants it.
+    excluded_measures: tuple[str, ...] = ()
+
     #: Where the Cube model lives, relative to the domain repo root.
     cube_model: str = "cube/model"
 
@@ -136,8 +148,9 @@ def load(root: pathlib.Path | str = ".") -> Domain:
             f"{MANIFEST} has keys this platform does not understand: {sorted(unknown)}. "
             f"Known keys: {sorted(known)}"
         )
-    if isinstance(raw.get("numeric_measures"), list):
-        raw["numeric_measures"] = tuple(raw["numeric_measures"])
+    for key in ("numeric_measures", "selectable", "excluded_measures"):
+        if isinstance(raw.get(key), list):
+            raw[key] = tuple(raw[key])
     domain = Domain(**raw)
     domain.validate()
     return domain
