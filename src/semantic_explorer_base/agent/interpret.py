@@ -155,13 +155,13 @@ def choose_interpretation(
     if not api_key:
         return None, None, False, []
 
-    from openai import OpenAI
+    from semantic_explorer_base.agent.client import client
 
     gloss = glosses if glosses is not None else subject_glosses(domain, cube_url=cube_url)
     schema, safe = interpretation_schema(gloss, domain)
     listing = "\n".join(f"{n} :: {' | '.join(v)}" for n, v in sorted(gloss.items()))
     heading = domain.strings.get("subject_heading", "SUBJECT").title()
-    response = OpenAI(api_key=api_key).chat.completions.create(
+    response = client(api_key).chat.completions.create(
         model=PICK_MODEL,
         # Not sampled. The same question must give the same selection — a figure a partner
         # cannot reproduce is worth less than one they can. (Temperature 0 narrows the spread

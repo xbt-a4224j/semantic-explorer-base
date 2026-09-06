@@ -70,10 +70,10 @@ def pick_value(
     if not key or not candidates:
         return None
 
-    from openai import OpenAI
+    from semantic_explorer_base.agent.client import client
 
     schema, safe = _schema(candidates)
-    response = OpenAI(api_key=key).chat.completions.create(
+    response = client(key).chat.completions.create(
         model=PICK_MODEL,
         messages=[
             {"role": "system", "content": task or SYSTEM_PROMPT},

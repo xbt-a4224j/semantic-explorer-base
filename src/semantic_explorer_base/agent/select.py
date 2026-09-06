@@ -299,9 +299,9 @@ def select_with_usage(
 ) -> SelectionCall:
     """The only function in this module that calls out. Everything else is pure and testable
     with no key."""
-    from openai import OpenAI
+    from semantic_explorer_base.agent.client import client as _client
 
-    client = OpenAI(api_key=api_key)
+    client = _client(api_key)
     schema = {
         "type": "object",
         "properties": vocabulary.as_json_schema_properties(),
