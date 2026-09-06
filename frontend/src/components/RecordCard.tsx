@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { SubjectDetail, CorpusRecord, RecordDetail } from '../types'
 import { ignoreAbort } from '../index'
-import { useStrings } from '../strings'
+import type { QuorumStrings } from '../strings'
 
 /**
  * One record from the corpus, with drill-through to the source text behind it.
@@ -39,10 +39,13 @@ export interface RecordRenderers {
    * it, because industry and year come from enrichment rather than from an expert label.
    */
   evidenceFor?: Readonly<Record<string, string>>
+  /** The record's title in the source citation line, if different from `source_title`. */
+  cite?: (detail: RecordDetail) => React.ReactNode
 }
 
 export function RecordCard({
   record,
+  strings,
   render = {},
   focused,
   expanded,
@@ -51,6 +54,8 @@ export function RecordCard({
   onToggle,
 }: {
   record: CorpusRecord
+  /** The domain's nouns. Passed, not injected — see strings.ts. */
+  strings: QuorumStrings
   /** The domain's own way of drawing this record. See `RecordRenderers`. */
   render?: RecordRenderers
   /** e.g. `{ dimension: 'consideration_type', value: 'All Cash' }`, when one is applied */
@@ -60,7 +65,6 @@ export function RecordCard({
   onFocus: () => void
   onToggle: () => void
 }) {
-  const strings = useStrings()
   const [detail, setDetail] = useState<RecordDetail | null>(null)
   const evidenceName = activeFilter ? (render.evidenceFor?.[activeFilter.dimension] ?? null) : null
   const [error, setError] = useState<string | null>(null)
@@ -78,7 +82,7 @@ export function RecordCard({
         if (!response.ok) throw new Error(payload?.error?.message ?? `could not load ${strings.subjects}`)
         // a 200 whose body is not a record detail (a misrouted proxy, a stale worker) would
         // otherwise crash on .map and take the whole result list down with it
-        if (!Array.isArray(payload?.deal_points)) {
+        if (!Array.isArray(payload?.facts)) {
           throw new Error(`The response did not contain ${strings.subjects} for this ${strings.record}.`)
         }
         return payload as RecordDetail
@@ -156,7 +160,7 @@ export function RecordCard({
               <div className="card__toolbar">
                 <p className="card__provenance">
                   <span className="mono">
-                    {detail.located_count} of {detail.deal_point_count}
+                    {detail.located_count} of {detail.subject_count}
                   </span>{' '}
                   {strings.subjects} traced to a source span
                   {render.footnote?.(detail)}
@@ -167,13 +171,14 @@ export function RecordCard({
               </div>
 
               <p className="card__cite">
-                {detail.source_contract_title}{' '}
+                {render.cite?.(detail) ?? detail.source_title}{' '}
                 <span className="mono muted">{detail.source_file}</span>
               </p>
 
               <ul className="dps">
-                {orderedFacts(detail.deal_points, evidenceName).map((dp) => (
+                {orderedFacts(detail.facts, evidenceName).map((dp) => (
                   <Fact
+          strings={strings}
                     key={dp.subject}
                     dp={dp}
                     sourceFile={detail.source_file}
@@ -214,6 +219,7 @@ function orderedFacts(dps: SubjectDetail[], evidenceName: string | null): Subjec
 }
 
 function Fact({
+  strings,
   dp,
   sourceFile,
   evidenceFor,
@@ -221,8 +227,8 @@ function Fact({
   dp: SubjectDetail
   sourceFile: string | null
   evidenceFor?: string
+  strings: QuorumStrings
 }) {
-  const strings = useStrings()
   const [open, setOpen] = useState(Boolean(evidenceFor))
   return (
     <li

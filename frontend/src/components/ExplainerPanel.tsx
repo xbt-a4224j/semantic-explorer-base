@@ -20,7 +20,9 @@ import type { ReactNode } from 'react'
  * ways that differ across browsers. An explicit button keeps the keyboard contract legible.
  */
 
-const PREFIX = 'clause-explorer.explainer.'
+// Namespaced but not named. Every artifact origin gets its own localStorage anyway, so the
+// app's name bought nothing here and made a shared component mention one product.
+const PREFIX = 'quorum.explainer.'
 
 function readStored(id: string, defaultOpen: boolean): boolean {
   try {

@@ -16,18 +16,15 @@
  * Terms" is not evidence that the tab is legal — it is evidence that nobody could rename it
  * without editing code.
  *
- * ## Why a registry and not props or context
+ * ## How a component gets them
  *
- * Passing `strings` down through every view to every row is 6,000 lines of signature churn to
- * move a noun. Context avoids that but makes every render site — including every test that
- * renders one component — responsible for supplying a provider, which is 100+ wrappers for a
- * value that is constant for the life of the process.
- *
- * There is exactly ONE set of strings per application and it never changes at runtime, so it is
- * registered once at startup. `useStrings` still throws when nothing has registered: a default
- * noun rendering silently into a real product reads as a data bug rather than as a missing
- * call, and that is the failure this is here to prevent.
+ * As a prop, from the domain's composition root. Four components need words and the deepest is
+ * two levels down, so there is nothing here that an injection mechanism would save.
  */
+
+export interface Glossary {
+  readonly [term: string]: { readonly short: string; readonly long: string }
+}
 
 export interface QuorumStrings {
   /** The application's own name. */
@@ -58,9 +55,35 @@ export interface QuorumStrings {
    */
   readonly sourceText: string
 
+  /**
+   * One sentence naming the held-out set on the Label tab: how many, and what makes them gold.
+   * On the reference corpus: "Every item queued here is one of the 20 held-out matters —
+   * documents MAUD already has a lawyer's answer for." A corpus-specific fact about the
+   * calibration split, not a word the platform can supply.
+   */
+  readonly heldOutClaim: string
+
+  /**
+   * Why a labelling item has no quotable source span, in this corpus's own words. On the
+   * reference corpus: "No quotable clause: this deal point is answered from the agreement as a
+   * whole. Open the matter for the surrounding text." — MAUD's annotation is sometimes an
+   * envelope rather than a quotation, and explaining that is a fact about MAUD, not the
+   * platform's to phrase generically.
+   */
+  readonly noSpanReason: string
+
   /** An example question, for the Ask placeholder. The one string here that is genuinely
    *  content rather than vocabulary — a bad example teaches the wrong thing about the corpus. */
   readonly exampleQuestion: string
+
+  /**
+   * This corpus's terms of art, with their definitions. Rendered by `Term` on hover.
+   *
+   * Here rather than in the platform because a shared glossary is either wrong for every other
+   * corpus or so generic it defines nothing — "MAUD" and "fiduciary out" mean something to one
+   * reader and nothing to the next.
+   */
+  readonly glossary: Glossary
 
   /** Tab labels and hints, keyed by the platform's generic id. */
   readonly tabs: Readonly<Record<TabId, { readonly label: string; readonly hint: string }>>
@@ -77,26 +100,12 @@ export const TAB_IDS = ['overview', 'ask', 'explore', 'terms', 'trust', 'label']
 
 export type TabId = (typeof TAB_IDS)[number]
 
-let registered: QuorumStrings | null = null
-
-/** Called once at startup with the domain's own words. */
-export function configureStrings(strings: QuorumStrings): void {
-  registered = strings
-}
-
 /**
- * The domain's words. Throws when nothing has registered them rather than falling back.
+ * There is no registry, no context and no hook. `QuorumStrings` is a plain interface and a
+ * domain passes an instance down from its own composition root.
  *
- * No defaults on purpose. A fallback like "record" renders silently into a legal product and
- * reads as a bug in the data; a thrown error is found the first time anyone opens the page.
+ * The earlier version registered the strings globally so components could reach them without a
+ * prop. It cost 107 test failures the moment a render happened outside the registration, and it
+ * bought nothing: the value is constant for the life of the process and is needed by four
+ * components. Nine call sites do not justify an injection mechanism.
  */
-export function useStrings(): QuorumStrings {
-  if (!registered) {
-    throw new Error(
-      'configureStrings() has not been called. Every shared component reads the domain\'s ' +
-        'nouns from it, and there is deliberately no fallback: a default noun rendered into a ' +
-        'real product reads as a data bug rather than as missing configuration.',
-    )
-  }
-  return registered
-}

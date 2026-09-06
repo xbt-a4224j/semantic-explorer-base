@@ -33,13 +33,13 @@
  */
 
 // ── design system ────────────────────────────────────────────────────────────────────────
-export { configureStrings, TAB_IDS, useStrings } from './strings'
-export type { QuorumStrings, TabId } from './strings'
+export { TAB_IDS } from './strings'
+export type { Glossary, QuorumStrings, TabId } from './strings'
 
 // ── primitives ───────────────────────────────────────────────────────────────────────────
 export { ResultsSkeleton } from './components/Skeleton'
 export { SessionCost } from './components/SessionCost'
-export { GLOSSARY, Term } from './components/Term'
+export { Term } from './components/Term'
 export { ExplainerPanel } from './components/ExplainerPanel'
 export { formatLatency, formatTokens, formatUsd } from './components/usage'
 export { ignoreAbort, isAbortError, useAbortOnUnmount } from './components/abort'
@@ -47,6 +47,7 @@ export { useKeyboard } from './useKeyboard'
 
 // ── charts and diagrams ──────────────────────────────────────────────────────────────────
 export { BarChart, ChartFrame, Legend, StackedBar, StatTiles } from './components/charts'
+export { RollupDiagram } from './components/diagrams'
 export { LoopDiagram } from './components/LoopDiagram'
 export { RoutingDiagram } from './components/RoutingDiagram'
 

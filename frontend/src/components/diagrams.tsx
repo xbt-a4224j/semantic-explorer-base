@@ -35,7 +35,13 @@ function Arrow({ id }: { id: string }) {
   )
 }
 
-export function RollupDiagram() {
+export function RollupDiagram({
+  description,
+}: {
+  /** How THIS corpus's rollup works — what a row is, what rolls it up, why a new question costs
+   *  nothing. A description of a specific corpus's mechanism, not the platform's to write. */
+  description: string
+}) {
   return (
     <svg
       className="loop"
@@ -45,14 +51,7 @@ export function RollupDiagram() {
       preserveAspectRatio="xMinYMin meet"
     >
       <title id="dt-t">How the rollup is built</title>
-      <desc id="dt-d">
-        152 merger agreements were each read by lawyers who answered the same 92 questions, the
-        American Bar Association's public target deal points. Those answers are stored one row
-        per agreement per question, which is why a new question costs nothing to add. Selecting a
-        set of deals in Explore rolls those rows up into a count per question. Below a sample size
-        of 30 the answer renders as a count rather than a percentage, and every row drills back
-        to the clause language in the source file.
-      </desc>
+      <desc id="dt-d">{description}</desc>
       <Arrow id="dt-a" />
 
       <g className="loop__edges" markerEnd="url(#dt-a)">

@@ -3,8 +3,7 @@ import type React from 'react'
 import type { RollupRow, RollupResponse, DrillRecord } from '../types'
 import { ignoreAbort, isAbortError, useAbortOnUnmount } from '../index'
 import { ExplainerPanel } from '../components/ExplainerPanel'
-import { RollupDiagram } from '../components/diagrams'
-import { DealTermsExplainer } from '../components/explainers'
+import type { QuorumStrings } from '../strings'
 
 /**
  * Deal Terms — what was negotiated across the selected set (#21).
@@ -18,7 +17,29 @@ import { DealTermsExplainer } from '../components/explainers'
  * A deal point nobody in the set negotiated stays on screen as `0 of 8`. "We checked and it is
  * not there" and "we did not check" are indistinguishable once the row disappears.
  */
-export function Rollup({ selection }: { selection: string[] }) {
+export function Rollup({
+  selection,
+  diagram,
+  scopeFallback,
+  strings,
+  explainer,
+}: {
+  selection: string[]
+  /** The domain's nouns. Passed, not injected — see strings.ts. */
+  strings: QuorumStrings
+  /** This corpus's own explanation of the rollup. Prose about a corpus is the one thing a
+   *  shared view cannot supply. */
+  explainer?: React.ReactNode
+  /** This corpus's own rollup diagram — what a row is, what a new question costs, why 30 is
+   *  the threshold. A description of THIS corpus's mechanism. */
+  diagram?: React.ReactNode
+  /**
+   * Said if the server ever omits `scope_note`. A claim about what "comparable" means for
+   * THIS corpus — public records vs. a firm's own history, on the reference corpus — so it
+   * cannot default to anything generic without reading as a data bug the day it fires.
+   */
+  scopeFallback: string
+}) {
   const [data, setData] = useState<RollupResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -49,8 +70,8 @@ export function Rollup({ selection }: { selection: string[] }) {
   if (selection.length === 0) {
     return (
       <div className="state state--empty">
-      <ExplainerPanel id="terms" title="What this tab is for: what was negotiated" diagram={<RollupDiagram />} defaultOpen={false}>
-        <DealTermsExplainer />
+      <ExplainerPanel id="terms" title="What this tab is for: what was negotiated" diagram={diagram} defaultOpen={false}>
+        {explainer}
       </ExplainerPanel>
         <h3 className="state__title">No deals selected</h3>
         <p className="state__body">
@@ -64,7 +85,7 @@ export function Rollup({ selection }: { selection: string[] }) {
 
   return (
     <div className="terms">
-      <p className="terms__scope">{data?.scope_note ?? SCOPE_FALLBACK}</p>
+      <p className="terms__scope">{data?.scope_note ?? scopeFallback}</p>
 
       {error && (
         <div className="state state--error" role="alert">
@@ -103,16 +124,16 @@ export function Rollup({ selection }: { selection: string[] }) {
       {data && !data.refused && (
         <>
           <p className="terms__caption">
-            {data.answered_deal_point_count} deal points answered across{' '}
+            {data.answered_subject_count} {strings.subjects} answered across{' '}
             <span className="mono">n={data.selection_n}</span> agreements ·{' '}
-            {data.absent_deal_point_count} not answered by any of them · counts rather than
+            {data.absent_subject_count} not answered by any of them · counts rather than
             percentages below n={data.percentage_threshold}, because a percentage implies a
             precision this sample does not support
           </p>
 
           <ul className="terms__list">
             {data.rows.map((row) => (
-              <TermRow key={row.subject} row={row} selection={selection} />
+              <TermRow key={row.subject} row={row} selection={selection} strings={strings} />
             ))}
           </ul>
         </>
@@ -121,11 +142,15 @@ export function Rollup({ selection }: { selection: string[] }) {
   )
 }
 
-const SCOPE_FALLBACK =
-  'Comparable PUBLIC deals from the MAUD study of SEC-filed merger agreements — ' +
-  "not this firm's own matter history."
-
-function TermRow({ row, selection }: { row: RollupRow; selection: string[] }) {
+function TermRow({
+  row,
+  selection,
+  strings,
+}: {
+  row: RollupRow
+  selection: string[]
+  strings: QuorumStrings
+}) {
   const [drilled, setDrilled] = useState<DrillRecord[] | null>(null)
   const [drillError, setDrillError] = useState<string | null>(null)
   const absent = row.answered_n === 0
@@ -149,7 +174,7 @@ function TermRow({ row, selection }: { row: RollupRow; selection: string[] }) {
         setDrillError(payload.refusal?.message ?? 'This selection is too small to drill into.')
         return
       }
-      setDrilled(payload.matters)
+      setDrilled(payload.records)
     } catch (e) {
       if (isAbortError(e)) return
       setDrillError((e as Error).message)
@@ -196,8 +221,8 @@ function TermRow({ row, selection }: { row: RollupRow; selection: string[] }) {
 
       {absent && (
         <p className="term__absent">
-          No matter in this set carries a labelled answer for this deal point. Absence is a
-          finding, so the row stays.
+          No {strings.record} in this set carries a labelled answer for this{' '}
+          {strings.subject}. Absence is a finding, so the row stays.
         </p>
       )}
 

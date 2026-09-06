@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { AskFilter, AskResponse, MemberInfo, RunSelectionResponse } from '../types'
 import { isAbortError, useAbortOnUnmount } from '../index'
 import { formatLatency, formatTokens, formatUsd } from '../index'
-import { useStrings } from '../strings'
+import type { QuorumStrings } from '../strings'
 
 /**
  * Ask in words, confirm the reading, then run (#47, #57).
@@ -151,7 +151,7 @@ function Resolution({ filter }: { filter: EditableFilter }) {
     <span className="ask__method">
       {resolution.method}
       {resolution.similarity !== null && <> · {resolution.similarity.toFixed(2)}</>}
-      {resolution.matter_count !== null && <> · n={resolution.matter_count}</>}
+      {resolution.record_count !== null && <> · n={resolution.record_count}</>}
     </span>
   )
 }
@@ -205,8 +205,14 @@ function ChipName({
   )
 }
 
-export function AskBox({ onAsked }: { onAsked?: (costUsd: number) => void } = {}) {
-  const strings = useStrings()
+export function AskBox({
+  strings,
+  onAsked,
+}: {
+  /** The domain's nouns. Passed, not injected — see strings.ts. */
+  strings: QuorumStrings
+  onAsked?: (costUsd: number) => void
+}) {
   const [question, setQuestion] = useState('')
   const [asking, setAsking] = useState(false)
   const [asked, setAsked] = useState<AskResponse | null>(null)

@@ -8,6 +8,7 @@ import { ignoreAbort } from '../index'
 import { BarChart, ChartFrame, Legend, StackedBar, StatTiles } from '../components/charts'
 import { LoopDiagram } from '../components/LoopDiagram'
 import { IngestStatus, LogViewer } from '../components/operator'
+import type { QuorumStrings } from '../strings'
 
 /**
  * Trust (#54) — where the model is trusted, where it is not, and what the humans changed.
@@ -49,7 +50,24 @@ interface Artefact {
   problem: string | null
 }
 
-export function Trust() {
+export function Trust({
+  strings,
+  accuracyChartCopy,
+}: {
+  /** The domain's nouns. Passed, not injected — see strings.ts. */
+  strings: QuorumStrings
+  /**
+   * Title and lead note for the accuracy chart — which questions the calibrated extractor can
+   * answer without a person. On the reference corpus this names the ABA's deal-point questions
+   * and "a lawyer" specifically; a claims corpus names something else entirely. The footnote
+   * below stays the platform's: it is the same three-way split of any calibration run.
+   */
+  accuracyChartCopy: (stats: {
+    heldOut: number
+    reportable: number
+    total: number
+  }) => { title: string; note: React.ReactNode }
+}) {
   const [calibration, setCalibration] = useState<CalibrationResponse | null>(null)
   const [labels, setLabels] = useState<CalibrationLabels | null>(null)
   const [selection, setSelection] = useState<MeasureSelectionSummary | null>(null)
@@ -137,8 +155,8 @@ export function Trust() {
       )}
 
       <CostRow calibration={calibration} />
-      <AccuracyChart calibration={calibration} />
-      <LoopSection labels={labels} />
+      <AccuracyChart calibration={calibration} strings={strings} accuracyChartCopy={accuracyChartCopy} />
+      <LoopSection labels={labels} strings={strings} />
       <DisagreementChart labels={labels} />
       <SelectionQualityChart summary={selection} />
       <OperatorSection />
@@ -186,7 +204,19 @@ function CostRow({ calibration }: { calibration: CalibrationResponse | null }) {
  * spends the identity channel on information the chart already shows. Sorting worst-first is
  * what carries the ranking.
  */
-function AccuracyChart({ calibration }: { calibration: CalibrationResponse | null }) {
+function AccuracyChart({
+  calibration,
+  strings,
+  accuracyChartCopy,
+}: {
+  calibration: CalibrationResponse | null
+  strings: QuorumStrings
+  accuracyChartCopy: (stats: {
+    heldOut: number
+    reportable: number
+    total: number
+  }) => { title: string; note: React.ReactNode }
+}) {
   if (!calibration || calibration.results.length === 0) return null
   // The grader emits worst-first, because the ordering is a finding about the extractor. This
   // tab is read to decide what the extractor may be trusted with, and that decision is made at
@@ -204,7 +234,7 @@ function AccuracyChart({ calibration }: { calibration: CalibrationResponse | nul
   // How many agreements each deal point was tested on. Read from the data rather than hardcoded:
   // a deal point is scored on every holdout matter that carries an answer for it, so the largest
   // n across the vocabulary is the holdout size.
-  const holdoutMatters = measured.reduce((m, r) => Math.max(m, r.n), 0)
+  const heldOutCount = measured.reduce((m, r) => Math.max(m, r.n), 0)
   const unmeasured = rows.length - measured.length
   const best = measured[0]
 
@@ -213,7 +243,7 @@ function AccuracyChart({ calibration }: { calibration: CalibrationResponse | nul
     value: r.measured ? r.accuracy : null,
     detail: r.measured
       ? `${r.correct} of ${r.n} · 95% CI [${r.ci_low?.toFixed(2)}, ${r.ci_high?.toFixed(2)}]`
-      : 'the run never reached this deal point',
+      : `the run never reached this ${strings.subject}`,
     // selective: only the worst row is labelled, so the label still means something
     directLabel: r === best && r.accuracy !== null ? `best · ${r.accuracy.toFixed(2)}` : undefined,
   }))
@@ -222,20 +252,14 @@ function AccuracyChart({ calibration }: { calibration: CalibrationResponse | nul
     <section className="trust__section">
       <ChartFrame
         testId="trust-accuracy"
-        title="Which questions could run without a lawyer?"
-        note={
-          <>
-            Each bar is one of the ABA&rsquo;s deal-point questions; its length is how often an
-            automated extractor got it right on {holdoutMatters} agreements lawyers had already
-            answered. Point it at documents nobody has annotated and{' '}
-            <strong>
-              {calibration.reportable_count} of {measured.length} questions could be answered by
-              machine
-            </strong>
-            . For the other {measured.length - (calibration.reportable_count ?? 0)}, a person has
-            to read the agreement.
-          </>
-        }
+        {...(() => {
+          const copy = accuracyChartCopy({
+            heldOut: heldOutCount,
+            reportable: calibration.reportable_count ?? 0,
+            total: measured.length,
+          })
+          return { title: copy.title, note: copy.note }
+        })()}
         footnote={
           <>
             The {measured.length} split three ways, which is why no two numbers here add up to it
@@ -243,8 +267,8 @@ function AccuracyChart({ calibration }: { calibration: CalibrationResponse | nul
             <strong>{clearingGate - (calibration.reportable_count ?? 0)}</strong> score above it but on
             too few samples to prove it, and <strong>{calibration.reportable_count}</strong> clear
             the bar the product enforces. That bar is the lower end of the confidence interval, not
-            the score, so a deal point cannot be flattered by a sample too small to tell from a coin
-            flip. At {holdoutMatters} agreements that is demanding: roughly 18 of 19 correct.{' '}
+            the score, so a {strings.subject} cannot be flattered by a sample too small to tell from a coin
+            flip. At {heldOutCount} {strings.colloquial} that is demanding: roughly 18 of 19 correct.{' '}
             {zeros} score exactly 0.00, and {unmeasured} read “not measured”, a coverage gap
             rather than a failed extraction.
           </>
@@ -253,7 +277,7 @@ function AccuracyChart({ calibration }: { calibration: CalibrationResponse | nul
           <table className="admin__table">
             <thead>
               <tr>
-                <th>deal point</th>
+                <th>{strings.subject}</th>
                 <th>n</th>
                 <th>correct</th>
                 <th>accuracy</th>
@@ -297,12 +321,19 @@ function AccuracyChart({ calibration }: { calibration: CalibrationResponse | nul
 }
 
 /** 2 — the loop, with real counts on its edges, and the caveat that qualifies them. */
-function LoopSection({ labels }: { labels: CalibrationLabels | null }) {
+function LoopSection({
+  labels,
+  strings,
+}: {
+  labels: CalibrationLabels | null
+  strings: QuorumStrings
+}) {
   if (!labels) return null
   return (
     <section className="trust__section">
       <h2 className="admin__heading">The review loop</h2>
       <LoopDiagram
+        subject={strings.subject}
         counts={{
           predictions: labels.prediction_count,
           decisions: labels.labels_applied,

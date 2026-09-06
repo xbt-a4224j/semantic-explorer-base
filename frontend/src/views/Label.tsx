@@ -3,6 +3,7 @@ import type { CalibrationLabels, LabelQueueItem, LabelQueueResponse } from '../t
 import { ignoreAbort } from '../index'
 import { ExplainerPanel } from '../components/ExplainerPanel'
 import { LoopDiagram } from '../components/LoopDiagram'
+import type { QuorumStrings } from '../strings'
 
 /**
  * Label — the review queue (#29, #52).
@@ -20,7 +21,7 @@ import { LoopDiagram } from '../components/LoopDiagram'
  * trap for the reviewer who types into a page that no longer listens. Native `<button>`s, so
  * Tab reaches them and Enter fires them without any window-level binding at all.
  */
-export function Label() {
+export function Label({ strings }: { strings: QuorumStrings }) {
   const [queue, setQueue] = useState<LabelQueueResponse | null>(null)
   const [cursor, setCursor] = useState(0)
   const [editing, setEditing] = useState(false)
@@ -68,8 +69,8 @@ export function Label() {
       }),
     })
     setLastDecision({
-      matterId: item.record_id,
-      dealPointName: item.subject,
+      recordId: item.record_id,
+      subjectName: item.subject,
       value,
       modelAnswer: item.llm_prediction,
     })
@@ -91,7 +92,7 @@ export function Label() {
 
   return (
     <div className="label">
-      <ExplainerPanel id="label" title="How this queue works" diagram={<LoopDiagram />}>
+      <ExplainerPanel id="label" title="How this queue works" diagram={<LoopDiagram subject={strings.subject} />}>
         <p>
           <strong>What this tab is for.</strong> Improving the extractor without paying for a
           full re-annotation. Two extractors read the same contract — a language model whose
@@ -114,16 +115,15 @@ export function Label() {
         <p>
           <strong>What your decision does.</strong> Each decision writes one row to{' '}
           <code>labels</code>, and <strong>calibration reads that table</strong>. On the next
-          grading run your answer <em>replaces</em> the model&rsquo;s for that matter and deal
-          point and is scored against MAUD like any other answer — which means a mistyped label
+          grading run your answer <em>replaces</em> the model&rsquo;s for that {strings.record} and
+          {strings.subject} and is scored like any other answer — which means a mistyped label
           moves the accuracy table down, not up. The panel at the top of this tab is that
           before/after pair as it stands today; <strong>Trust</strong> breaks it down by deal
           point.
         </p>
         <p>
-          <strong>What that does not mean.</strong> Every item queued here is one of the 20
-          held-out matters — documents MAUD <strong>already has a lawyer&rsquo;s answer for</strong>
-          . Reviewing a prediction where gold already exists tells you nothing gold did not. The
+          <strong>What that does not mean.</strong> {strings.heldOutClaim}
+          Reviewing a prediction where gold already exists tells you nothing gold did not. The
           loop closing means calibration <em>can</em> prefer a human label; it does not mean this
           corpus needs one. This tab is the mechanism you would need on <em>un-annotated</em> firm
           documents — where the reviewer&rsquo;s decision is the only answer there is —
@@ -131,7 +131,7 @@ export function Label() {
         </p>
       </ExplainerPanel>
 
-      <LoopOutcome />
+      <LoopOutcome strings={strings} />
 
       {!queue && !queueError && (
         <div className="skeleton skeleton--row" aria-label="loading queue" />
@@ -175,7 +175,7 @@ export function Label() {
         </p>
       )}
 
-      {lastDecision && <Agreement decision={lastDecision} />}
+      {lastDecision && <Agreement decision={lastDecision} strings={strings} />}
 
       {queue && !item && (
         <div className="state state--empty">
@@ -199,10 +199,7 @@ export function Label() {
           {item.quoted_text ? (
             <blockquote className="dp__clause">{item.quoted_text}</blockquote>
           ) : (
-            <p className="dp__missing" data-testid="label-nospan">
-              No quotable clause: this deal point is answered from the agreement as a whole.
-              Open the matter for the surrounding text.
-            </p>
+            <p className="dp__missing" data-testid="label-nospan">{strings.noSpanReason}</p>
           )}
 
           {/* why THIS item, in the reviewer's terms — the ranking rationale is otherwise
@@ -310,7 +307,7 @@ export function Label() {
                     autoFocus
                   />
                   <span className="label__novocabulary" data-testid="label-novocabulary">
-                    This deal point has no recorded answers in the corpus, so there is no
+                    This {strings.subject} has no recorded answers in the corpus, so there is no
                     vocabulary to offer. The server will reject whatever you type here for the
                     same reason — nothing to check it against.
                   </span>
@@ -333,8 +330,8 @@ export function Label() {
 
 /** What the reviewer just recorded, kept so the next item can report on the last one. */
 interface Decision {
-  matterId: string
-  dealPointName: string
+  recordId: string
+  subjectName: string
   value: string
   modelAnswer: string
 }
@@ -345,14 +342,14 @@ interface Decision {
  * The aggregate panel says what six decisions did to the graded score. This is the same
  * question at one item's resolution, and it is the only feedback the queue gives back: the
  * cursor has already moved on, so without this a reviewer never learns whether the answer
- * they overrode was the one MAUD would have kept.
+ * they overrode was the one the corpus's own gold answer would have kept.
  */
-function Agreement({ decision }: { decision: Decision }) {
+function Agreement({ decision, strings }: { decision: Decision; strings: QuorumStrings }) {
   const agreed = decision.value === decision.modelAnswer
   return (
     <p className="label__agreement" data-testid="label-agreement">
       Recorded <span className="mono">{decision.value}</span> for{' '}
-      <span className="mono">{decision.matterId}</span> · {decision.dealPointName}. The model had
+      <span className="mono">{decision.recordId}</span> · {decision.subjectName}. The model had
       answered <span className="mono">{decision.modelAnswer}</span> —{' '}
       {agreed ? (
         <>
@@ -361,7 +358,7 @@ function Agreement({ decision }: { decision: Decision }) {
       ) : (
         <>
           it <strong>did not agree with you</strong>. Your answer replaces its own at the next
-          grading run, and moves that deal point&rsquo;s number either way.
+          grading run, and moves that {strings.subject}&rsquo;s number either way.
         </>
       )}
     </p>
@@ -381,7 +378,7 @@ function Agreement({ decision }: { decision: Decision }) {
  * this whole tab is an argument that the number is checkable, and the first place that claim
  * gets tested is when the number moves the wrong way.
  */
-function LoopOutcome() {
+function LoopOutcome({ strings }: { strings: QuorumStrings }) {
   const [data, setData] = useState<CalibrationLabels | null>(null)
   const [missing, setMissing] = useState(false)
 
@@ -479,17 +476,16 @@ function LoopOutcome() {
           </p>
 
           <p className="label__outcomecaveat">
-            Read that against what this corpus is: every item in this queue is a held-out matter
-            that <strong>already has a lawyer&rsquo;s answer</strong>, so reviewing one teaches the
-            system nothing gold did not. The loop closing means calibration <em>can</em> prefer a
-            human label; it does not mean this corpus needs one. The mechanism earns its keep on{' '}
-            <strong>un-annotated</strong> documents, where the reviewer&rsquo;s decision is the
-            only answer there is.
+            Read that against what this corpus is: {strings.heldOutClaim} Reviewing one teaches
+            the system nothing gold did not. The loop closing means calibration <em>can</em>{' '}
+            prefer a human label; it does not mean this corpus needs one. The mechanism earns its
+            keep on <strong>un-annotated</strong> documents, where the reviewer&rsquo;s decision
+            is the only answer there is.
           </p>
 
           <p className="label__provenance">
             Produced <span className="mono">{data.generated_at.slice(0, 10)}</span> by{' '}
-            <code>{data.command}</code>. Per deal point, on <strong>Trust</strong>.
+            <code>{data.command}</code>. Per {strings.subject}, on <strong>Trust</strong>.
           </p>
         </>
       )}

@@ -44,7 +44,14 @@ function direction({ correctBefore, correctAfter }: LoopCounts): string {
  * The direction is derived, never asserted. A loop that only ever reported improvement would be
  * a loop nobody should believe, and one that only ever reported a fall would be no better.
  */
-export function LoopDiagram({ counts }: { counts?: LoopCounts } = {}) {
+export function LoopDiagram({
+  counts,
+  subject,
+}: {
+  counts?: LoopCounts
+  /** The domain's word for what accuracy is measured per. */
+  subject: string
+}) {
   const n = (v: number) => v.toLocaleString('en-US')
   return (
     <svg
@@ -61,7 +68,7 @@ export function LoopDiagram({ counts }: { counts?: LoopCounts } = {}) {
         compared. Items where they disagree are ranked to the top of the review queue. Your
         decision writes one row to the labels table. The next calibration run reads that table
         and grades your answer in place of the model's, which moves the accuracy figure for that
-        deal point — up if you were right, down if you were not.
+        {subject} — up if you were right, down if you were not.
       </desc>
 
       <defs>
@@ -108,7 +115,7 @@ export function LoopDiagram({ counts }: { counts?: LoopCounts } = {}) {
         <text x="504" y="68">you decide</text>
         <text x="504" y="162">labels</text>
         <text x="353" y="162">calibration run</text>
-        <text x="189" y="162">accuracy per deal point</text>
+        <text x="189" y="162">accuracy per {subject}</text>
       </g>
 
       <g className="loop__sub">

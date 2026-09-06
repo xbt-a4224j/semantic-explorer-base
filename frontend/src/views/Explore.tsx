@@ -2,11 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FacetRail } from '../components/FacetRail'
 import { RecordCard, type RecordRenderers } from '../components/RecordCard'
 import { ResultsSkeleton } from '../index'
-import type { ComparablesResponse, FacetsResponse, CorpusRecord, JourneySeed } from '../types'
+import type { ComparablesResponse, CorpusCounts, FacetsResponse, CorpusRecord, JourneySeed } from '../types'
 import { ignoreAbort } from '../index'
 import { ExplainerPanel } from '../components/ExplainerPanel'
-import { ExploreExplainer } from '../components/explainers'
-import { Term } from '../components/Term'
+import type { QuorumStrings } from '../strings'
 
 
 /**
@@ -25,8 +24,8 @@ interface Props {
   // MutableRefObject, not RefObject: the shell creates it with useRef<HTMLInputElement>(null),
   // so its current is nullable and React 18's ref prop type requires the mutable form.
   searchRef: React.MutableRefObject<HTMLInputElement | null>
-  /** Reports the matters currently on screen — the set Deal Terms rolls up (#21). */
-  onSelectionChange?: (matterIds: string[]) => void
+  /** Reports the records currently on screen — the set Deal Terms rolls up (#21). */
+  onSelectionChange?: (recordIds: string[]) => void
   /**
    * Arrive already narrowed, from an Overview journey. Every field is nullable because a
    * journey narrows on whichever axes its question names — industry and consideration for the
@@ -36,6 +35,16 @@ interface Props {
   render?: RecordRenderers
   seedFilters?: JourneySeed | null
   onSeedConsumed?: () => void
+  /** The domain's nouns, forwarded to every component that renders a word. */
+  strings: QuorumStrings
+
+  /** This corpus's own explanation of what the tab is for. Prose about a corpus is the one
+   *  thing a shared view cannot supply — see explainers in the domain repo. */
+  explainer?: React.ReactNode
+  /** This corpus's own provenance line — which sources, what date range, what is
+   *  inferred. A claim about the corpus, so it cannot be the platform's. */
+  corpusStrip?: (counts: CorpusCounts) => React.ReactNode
+
 }
 
 /**
@@ -84,6 +93,9 @@ const RANKERS = [
 ] as const
 
 export function Explore({
+  explainer,
+  corpusStrip,
+  strings,
   render, searchRef, onSelectionChange, seedFilters, onSeedConsumed }: Props) {
   const [filters, setFilters] = useState<Filters>(EMPTY)
   const [description, setDescription] = useState('')
@@ -135,7 +147,7 @@ export function Explore({
       // the industry filter belongs on the server: #18 filters in Postgres and builds the
       // hybrid index over exactly the survivors, so scores are relative to the requested
       // slice. Filtering the response here instead would rank against the whole corpus and
-      // report a candidate_count for matters the partner never asked about.
+      // report a candidate_count for records the partner never asked about.
       folio_industry_code: filters.folio_industry_code,
       signed_from: filters.signing_year ? `${filters.signing_year}-01-01` : null,
       signed_to: filters.signing_year ? `${filters.signing_year}-12-31` : null,
@@ -164,18 +176,18 @@ export function Explore({
 
   // No client-side filtering: the server is the authority on what is in the slice, and dropping
   // rows here would put the visible list and `candidate_count` into disagreement.
-  const matters: CorpusRecord[] = useMemo(() => results?.matters ?? [], [results])
+  const records: CorpusRecord[] = useMemo(() => results?.records ?? [], [results])
 
   // report the visible set upward so Deal Terms rolls up exactly what the partner is looking at
   useEffect(() => {
-    onSelectionChange?.(matters.map((m) => m.record_id))
-  }, [matters, onSelectionChange])
+    onSelectionChange?.(records.map((m) => m.record_id))
+  }, [records, onSelectionChange])
 
   const move = useCallback(
     (delta: number) => {
-      setCursor((c) => Math.max(0, Math.min(matters.length - 1, c + delta)))
+      setCursor((c) => Math.max(0, Math.min(records.length - 1, c + delta)))
     },
-    [matters.length],
+    [records.length],
   )
 
   useEffect(() => {
@@ -191,9 +203,9 @@ export function Explore({
       } else if (e.key === 'k') {
         e.preventDefault()
         move(-1)
-      } else if (e.key === 'Enter' && matters[cursor]) {
+      } else if (e.key === 'Enter' && records[cursor]) {
         e.preventDefault()
-        setExpanded((id) => (id === matters[cursor].record_id ? null : matters[cursor].record_id))
+        setExpanded((id) => (id === records[cursor].record_id ? null : records[cursor].record_id))
       } else if (e.key === 'f') {
         e.preventDefault()
         listRef.current?.ownerDocument
@@ -207,7 +219,7 @@ export function Explore({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [move, matters, cursor])
+  }, [move, records, cursor])
 
   function toggle(group: string, value: string, code: string | null) {
     setFilters((f) => {
@@ -232,24 +244,14 @@ export function Explore({
   return (
     <div className="explore">
       <ExplainerPanel id="explore" title="What this tab is for: finding comparable deals">
-        <ExploreExplainer />
+        {explainer}
       </ExplainerPanel>
       {/* demo script 1 beat 1: what is loaded, before any interaction. An empty-looking rail
-          could be a small corpus or a broken ingest; these tell the two apart. */}
-      {facets?.corpus && (
-        <p className="explore__corpus mono">
-          {facets.corpus.matters} matters · {facets.corpus.deal_points.toLocaleString()} deal
-          points · {facets.corpus.industries} industries
-          {/* #35: a figure with no source is unverifiable. Each of these three comes from a
-              different corpus, and one of them is inferred rather than labelled. */}
-          <span className="explore__prov">
-            matters and deal points from <Term>MAUD</Term> (expert-labelled) · industries from{' '}
-            the <Term>SIC crosswalk</Term> via <Term>EDGAR</Term> (<Term>inferred</Term>) ·
-            2020-03-13 to
-            2021-11-21
-          </span>
-        </p>
-      )}
+          could be a small corpus or a broken ingest; these tell the two apart.
+          #35: a figure with no source is unverifiable — but WHICH sources and whether any of
+          them is inferred is a claim about this corpus, so it is the domain's `corpusStrip`,
+          not this file's. This view supplies the live counts; the domain supplies the prose. */}
+      {facets?.corpus && corpusStrip?.(facets.corpus)}
 
       <div className="explore__search">
         <input
@@ -296,6 +298,7 @@ export function Explore({
 
       <div className="explore__body">
         <FacetRail
+            strings={strings}
           facets={facets}
           loading={loading}
           onToggle={toggle}
@@ -315,13 +318,13 @@ export function Explore({
 
           {!error && loading && <ResultsSkeleton />}
 
-          {!error && !loading && matters.length === 0 && (
+          {!error && !loading && records.length === 0 && (
             <div className="state state--empty">
               <h3 className="state__title">No comparable deals in this slice</h3>
               <p className="state__body">
                 {activeCount === 0
                   ? 'The corpus is loaded but returned nothing for this description.'
-                  : `${activeCount} filter${activeCount > 1 ? 's' : ''} applied. The corpus has no matters that satisfy all of them.`}
+                  : `${activeCount} filter${activeCount > 1 ? 's' : ''} applied. The corpus has no records that satisfy all of them.`}
               </p>
               <button type="button" className="state__action" onClick={() => setFilters(EMPTY)}>
                 Clear filters
@@ -329,20 +332,21 @@ export function Explore({
             </div>
           )}
 
-          {!error && !loading && matters.length > 0 && (
+          {!error && !loading && records.length > 0 && (
             <>
               <p className="explore__count">
-                showing {matters.length} of {results?.candidate_count ?? matters.length} matching ·{' '}
-                <span className="muted">n={results?.candidate_count ?? matters.length}</span>
+                showing {records.length} of {results?.candidate_count ?? records.length} matching ·{' '}
+                <span className="muted">n={results?.candidate_count ?? records.length}</span>
               </p>
               <ul className="explore__list" ref={listRef}>
-                {matters.map((matter, i) => (
+                {records.map((record, i) => (
                   <RecordCard
-                    key={matter.record_id}
+                  strings={strings}
+                    key={record.record_id}
                     render={render}
-                  record={matter}
+                  record={record}
                     focused={i === cursor}
-                    expanded={expanded === matter.record_id}
+                    expanded={expanded === record.record_id}
                     activeFilter={
                       filters.consideration_type
                         ? { dimension: 'consideration_type', value: filters.consideration_type }
@@ -350,7 +354,7 @@ export function Explore({
                     }
                     onFocus={() => setCursor(i)}
                     onToggle={() =>
-                      setExpanded((id) => (id === matter.record_id ? null : matter.record_id))
+                      setExpanded((id) => (id === record.record_id ? null : record.record_id))
                     }
                   />
                 ))}

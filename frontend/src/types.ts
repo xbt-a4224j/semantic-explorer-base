@@ -28,9 +28,9 @@ export interface FacetSelection {
 }
 
 export interface CorpusCounts {
-  matters: number
-  deal_points: number
-  industries: number
+  records: number
+  facts: number
+  categories: number
 }
 
 export interface FacetsResponse {
@@ -77,7 +77,7 @@ export interface AppliedFilters {
 }
 
 export interface ComparablesResponse {
-  matters: CorpusRecord[]
+  records: CorpusRecord[]
   candidate_count: number
   returned_count: number
   applied_filters: AppliedFilters
@@ -96,21 +96,28 @@ export interface SubjectDetail {
   text_unavailable: string | null
 }
 
+/**
+ * A record's detail, as the PLATFORM needs it — the drill-through facts and how many were
+ * located. Everything that identifies the record — target/acquirer on a merger, provider/date
+ * on a claim — is the domain's, extended the same way `CorpusRecord` is:
+ *
+ *     interface MatterDetail extends RecordDetail {
+ *       target_name: string | null
+ *       acquirer_name: string | null
+ *       deal_value_usd: number | null
+ *     }
+ */
 export interface RecordDetail {
   record_id: string
-  target_name: string | null
-  acquirer_name: string | null
-  industry: string | null
-  is_inferred_industry: boolean
-  signing_date: string | null
-  deal_value_usd: number | null
   source_file: string | null
-  source_contract_title: string | null
-  deal_point_count: number
+  source_title: string | null
+  subject_count: number
   located_count: number
-  deal_points: SubjectDetail[]
+  facts: SubjectDetail[]
   /** Plain-text paragraph for pasting into a pitch. Built server-side so it cannot drift. */
   summary: string
+  /** Domain fields, typed by the domain's own interface. */
+  [field: string]: unknown
 }
 
 export interface PositionCount {
@@ -143,8 +150,8 @@ export interface RollupResponse {
   percentage_threshold: number
   min_extraction_confidence: number
   rows: RollupRow[]
-  answered_deal_point_count: number
-  absent_deal_point_count: number
+  answered_subject_count: number
+  absent_subject_count: number
   scope_note: string
   refused: boolean
   refusal: Refusal | null
@@ -403,7 +410,7 @@ export interface CalibrationResponse {
   results: CalibrationRow[]
   min_extraction_confidence: number
   vocabulary_size: number | null
-  measured_deal_point_count: number | null
+  measured_subject_count: number | null
   reportable_count: number | null
   cost: CalibrationCost | null
 }
@@ -421,7 +428,7 @@ export interface FilterResolution {
   method: string
   resolved: string | null
   similarity: number | null
-  matter_count: number | null
+  record_count: number | null
   /** near misses, populated only when `method` is "unresolved" */
   candidates: string[]
   note: string | null

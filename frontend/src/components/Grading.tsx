@@ -14,7 +14,17 @@ import { ignoreAbort } from '../index'
  * worst number here, and it is also the argument for why min_n is enforced server-side rather
  * than asked for in a prompt.
  */
-export function Grading() {
+export function Grading({
+  aliasExample,
+}: {
+  /**
+   * A worked example of two Cube measure names that mean the same thing, for the paragraph
+   * explaining why exact-set matching can wrongly punish a correct grading answer. Naming two
+   * real measures makes the point concrete; which two measures those are is this corpus's Cube
+   * model, not the platform's.
+   */
+  aliasExample?: { chosen: string; expected: string }
+}) {
   const [data, setData] = useState<GradingResponse | null>(null)
   const [corrections, setCorrections] = useState<CorrectionsGrade | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -66,11 +76,16 @@ export function Grading() {
       <p className="sem__sub">{data.note}</p>
       <p className="sem__sub">
         <strong>Read the failures before the score.</strong> Exact-set matching is harsher than
-        it looks: <code>q01</code> is marked wrong for choosing{' '}
-        <code>count_distinct_matters</code> where the case expected{' '}
-        <code>matters_total</code> — and the Cube model documents those two as the same measure
-        under different names. A grader that cannot see an alias will punish a correct answer,
-        which is itself a finding about the vocabulary rather than about the model.
+        it looks
+        {aliasExample && (
+          <>
+            : <code>q01</code> is marked wrong for choosing <code>{aliasExample.chosen}</code>{' '}
+            where the case expected <code>{aliasExample.expected}</code> — and the Cube model
+            documents those two as the same measure under different names
+          </>
+        )}
+        . A grader that cannot see an alias will punish a correct answer, which is itself a
+        finding about the vocabulary rather than about the model.
       </p>
 
       {/*

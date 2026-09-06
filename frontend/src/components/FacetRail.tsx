@@ -1,5 +1,5 @@
 import type { FacetsResponse } from '../types'
-import { useStrings } from '../strings'
+import type { QuorumStrings } from '../strings'
 
 /**
  * The facet rail (#19).
@@ -12,6 +12,7 @@ import { useStrings } from '../strings'
  * 2. **Every count carries its denominator.** `n=25`, not a bare 25 floating beside a label.
  */
 export function FacetRail({
+  strings,
   facets,
   loading,
   onToggle,
@@ -19,8 +20,9 @@ export function FacetRail({
   facets: FacetsResponse | null
   loading: boolean
   onToggle: (group: string, value: string, code: string | null) => void
+  /** The domain's nouns. Passed, not injected — see strings.ts. */
+  strings: QuorumStrings
 }) {
-  const strings = useStrings()
   return (
     <aside className="facets" aria-label="filters">
       {facets && (
