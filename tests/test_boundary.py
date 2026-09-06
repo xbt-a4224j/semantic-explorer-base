@@ -43,6 +43,10 @@ DOMAIN_WORDS = (
     "lawyer",
     "attorney",
     "law firm",
+    # The reference application's own name. It has a legacy DSN variable the platform must not
+    # inherit — adopting another project's env-var name is adopting a debt that is not yours.
+    "clause_explorer",
+    "clause-explorer",
     # medical
     "snomed",
     "synthea",
@@ -115,3 +119,17 @@ def test_no_imports_from_a_domain_package(path: pathlib.Path) -> None:
         r"^\s*(?:from|import)\s+(explorer|clause|claims)\b", path.read_text(), re.MULTILINE
     )
     assert not bad, f"{path.relative_to(SRC)} imports from a domain package: {set(bad)}"
+
+
+def test_the_schema_files_are_packaged() -> None:
+    """A wheel without the .sql files installs a migrate() that raises FileNotFoundError at
+    container start — and passes every test run from a source checkout, where the files are
+    simply there. Packaging omissions are invisible exactly where testing usually happens."""
+    import tomllib
+
+    pyproject = tomllib.loads((SRC.parents[1] / "pyproject.toml").read_text())
+    package_data = pyproject["tool"]["setuptools"]["package-data"]["quorum"]
+    assert "db/*.sql" in package_data
+
+    for name in ("spine.sql", "rename_legacy.sql"):
+        assert (SRC / "db" / name).exists(), f"{name} is referenced by migrate() and missing"

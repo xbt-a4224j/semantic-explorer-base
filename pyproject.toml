@@ -23,3 +23,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# The .sql files ARE the schema; a wheel without them installs a migrate() that raises
+# FileNotFoundError at container start. Templates likewise — `quorum init` is useless without
+# them, and both are the kind of omission that passes every test run from a source checkout.
+[tool.setuptools.package-data]
+quorum = ["db/*.sql", "templates/**/*"]
