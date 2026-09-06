@@ -1,0 +1,99 @@
+/* Design tokens: GitHub Primer, light.
+   https://primer.style/foundations/primitives/color
+
+   Light because this is a reading surface — the Deal Terms view is dense monospace
+   contract prose, and long-form legal text at 12-13px is materially easier to read as
+   dark-on-light. Every value below is a Primer primitive, not a hand-picked hex.
+
+   Accent is used ONLY on focus rings, the brand mark, and intentional CTAs. */
+:root {
+  /* canvas.subtle behind, canvas.default on the panels — the GitHub app shape:
+     grey page, white cards, so panel edges read without needing heavy borders */
+  --canvas: #f6f8fa;         /* canvas.subtle */
+  --surface-1: #ffffff;      /* canvas.default */
+  --surface-2: #f6f8fa;      /* canvas.subtle  — table headers, insets */
+  --surface-3: #eaeef2;      /* neutral.muted  — hover, selected rows */
+  --hairline: #d1d9e0;       /* border.default */
+  --hairline-strong: #afb8c1; /* border.emphasis */
+
+  /* contrast on --surface-1 (#ffffff), WCAG 2.1: 15.3 / 9.7 / 5.3 / 4.6 — all AA */
+  --ink: #1f2328;            /* fg.default */
+  --ink-muted: #414853;
+  --ink-subtle: #59636e;     /* fg.muted */
+  --ink-tertiary: #6e7781;   /* fg.subtle — floor for AA at body size; do not go lighter */
+
+  --accent: #0969da;         /* accent.fg — 4.6:1 on white */
+  --accent-hover: #0550ae;   /* accent.emphasis */
+  --success: #1a7f37;        /* success.fg */
+
+  /* ── MECHANISM ─────────────────────────────────────────────────────────────────────
+     Colour here encodes WHICH MECHANISM produced what you are looking at, and nothing
+     else. The app is otherwise deliberately neutral, and that neutrality had a cost: a
+     reader could not tell by looking that facet counts came from a governed semantic
+     layer while the ranking came from hybrid retrieval. That is the same complaint as
+     "an unscrupulous observer cannot see where the model is used versus a plain DB
+     query" — partly a visual problem, fixed here.
+
+     Three mechanisms, so three hues. `exact` and `meaning` are the two halves of the
+     hybrid blend, so hybrid is rendered as a gradient between them rather than as a
+     fourth colour — the picture is then literally what the arithmetic does.
+
+     All three are Primer primitives (purple.fg, orange.fg, pink.fg), and the set was
+     validated WITH `--accent` in it rather than eyeballed:
+
+       node scripts/validate_palette.js "#8250df,#bc4c00,#bf3989,#0969da" --mode light
+       lightness PASS · chroma PASS · CVD sep PASS · normal-vision PASS · contrast PASS
+
+     Teal and indigo were tried first and both FAILED the normal-vision floor against
+     --accent (ΔE 12.7 and 13.6, below 15): the accent blue owns the entire blue-purple-
+     teal region, and nothing else may live there. Every one of these is >= 5:1 on white.
+
+     Always pair the colour with its word — "bm25", "vector", "Keyword" — never colour
+     alone. The accent↔meaning pair sits at ΔE 3.5 under tritanopia, and the label is
+     what carries the meaning for that reader. */
+  --mech-governed: #8250df;        /* purple.fg  — Cube: facet counts, rollups, selections */
+  --mech-governed-bg: #fbefff;     /* purple.subtle */
+  --mech-exact: #bc4c00;           /* orange.fg  — BM25: the literal words you typed */
+  --mech-exact-bg: #fff1e5;        /* orange.subtle */
+  --mech-meaning: #bf3989;         /* pink.fg    — embeddings: deals that read alike */
+  --mech-meaning-bg: #ffeff7;      /* pink.subtle */
+
+  /* ── STATUS ────────────────────────────────────────────────────────────────────────
+     Promoted from 11 literals that had grown across shell.css while CLAUDE.md said the
+     only hardcoded hex in the codebase was two Admin status dots. The amber pair was
+     independently retyped four times, and #6a4a00/#fffaf0/#e6d8b5 were a near-miss
+     duplicate of an amber sitting four lines away. */
+  --warn: #9a6700;                 /* yellow.fg  — thin cells, suppression, a bad eval */
+  --warn-ink: #6a4500;             /* body text inside a warn panel */
+  --warn-bg: #fff8e5;              /* yellow.subtle */
+  --warn-border: #e6d3a3;
+  --danger: #d1242f;               /* danger.fg  — rejected, unreachable, failed */
+  --danger-ink: #8a1a22;
+  --danger-bg: #fff5f5;
+
+  --scrim: rgba(31, 35, 40, 0.45);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius: 6px;
+  --pad-sm: 8px;
+  --pad-md: 12px;
+  --pad-lg: 20px;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}

@@ -133,3 +133,16 @@ def test_the_schema_files_are_packaged() -> None:
 
     for name in ("spine.sql", "rename_legacy.sql"):
         assert (SRC / "db" / name).exists(), f"{name} is referenced by migrate() and missing"
+
+
+def test_the_spine_adds_its_columns_to_an_existing_table() -> None:
+    """`CREATE TABLE IF NOT EXISTS` is a no-op on a table the rename just produced, so every
+    spine column has to be added explicitly too. Without this the spine applies to fresh
+    databases only — and the one database that matters is never fresh."""
+    spine = (SRC / "db" / "spine.sql").read_text()
+    for column in ("attributes", "source_title", "category_code", "corpus"):
+        assert f"ADD COLUMN IF NOT EXISTS {column}" in spine.replace("  ", " ").replace(
+            "   ", " "
+        ) or f"ADD COLUMN IF NOT EXISTS {column}" in " ".join(spine.split()), (
+            f"records.{column} would be missing on a migrated database"
+        )

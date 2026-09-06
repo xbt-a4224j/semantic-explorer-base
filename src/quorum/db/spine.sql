@@ -57,6 +57,16 @@ CREATE TABLE IF NOT EXISTS records (
     attributes    JSONB NOT NULL DEFAULT '{}'::jsonb,
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- CREATE TABLE IF NOT EXISTS is a NO-OP on a table that already exists, including one this
+-- migration just renamed from a pre-platform name. So a database being carried onto the spine
+-- would silently miss every column added since — `attributes` above all, which the generic
+-- ingester writes to. Adding them explicitly is the difference between "the spine is applied"
+-- and "the spine is applied to new databases only".
+ALTER TABLE records ADD COLUMN IF NOT EXISTS source_title  TEXT NOT NULL DEFAULT '';
+ALTER TABLE records ADD COLUMN IF NOT EXISTS corpus        TEXT NOT NULL DEFAULT '';
+ALTER TABLE records ADD COLUMN IF NOT EXISTS category_code TEXT;
+ALTER TABLE records ADD COLUMN IF NOT EXISTS attributes    JSONB NOT NULL DEFAULT '{}'::jsonb;
+
 CREATE INDEX IF NOT EXISTS idx_records_corpus ON records (corpus);
 CREATE INDEX IF NOT EXISTS idx_records_category ON records (category_code);
 -- GIN so a domain that keeps its fields in `attributes` can still filter on them without
@@ -101,6 +111,12 @@ BEGIN
             ) NOT VALID;
     END IF;
 END $$;
+ALTER TABLE facts ADD COLUMN IF NOT EXISTS numeric_value     NUMERIC(18, 4);
+ALTER TABLE facts ADD COLUMN IF NOT EXISTS source_span_start INTEGER;
+ALTER TABLE facts ADD COLUMN IF NOT EXISTS source_span_end   INTEGER;
+ALTER TABLE facts ADD COLUMN IF NOT EXISTS span_kind         TEXT;
+ALTER TABLE facts ADD COLUMN IF NOT EXISTS is_inferred       BOOLEAN NOT NULL DEFAULT FALSE;
+
 CREATE INDEX IF NOT EXISTS idx_facts_subject ON facts (subject);
 CREATE INDEX IF NOT EXISTS idx_facts_record ON facts (record_id);
 

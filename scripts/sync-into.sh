@@ -109,13 +109,22 @@ else
   echo "  no .venv in $DOMAIN — wheel is in vendor/, install it where you need it"
 fi
 
-# The frontend half does not exist yet (semantic-quorum#4). When it does it is `npm pack` into
-# the same vendor/ and one line in the domain's package.json; the shape of this script does not
-# change.
-if [ -f "$PLATFORM/frontend/package.json" ]; then
-  echo "packing frontend"
-  (cd "$PLATFORM/frontend" && npm pack --silent --pack-destination "$VENDOR" >/dev/null)
-  echo "  $(basename "$(ls "$VENDOR"/*.tgz | head -1)")"
+# The frontend half. Copied as SOURCE into vendor/quorum-ui rather than packed as a tarball:
+# the domain's Vite build compiles it through an alias, so there is no second build to keep in
+# step and no dist/ to go stale. `npm pack` would add a build, a version bump and an install to
+# a loop whose whole point is that it runs in about a second.
+# INSIDE frontend/, not beside it. The domain's web image builds with `COPY frontend/ ./`, so a
+# vendor/ at the repo root is simply not in the image — the build would succeed locally, where
+# the alias resolves on disk, and fail in the container. Putting it under frontend/vendor means
+# the existing COPY picks it up with no Dockerfile change.
+if [ -d "$PLATFORM/frontend/src" ] && [ -d "$DOMAIN/frontend" ]; then
+  echo "syncing frontend"
+  UI="$DOMAIN/frontend/vendor/quorum-ui"
+  rm -rf "$UI"
+  mkdir -p "$UI"
+  cp -R "$PLATFORM/frontend/src" "$UI/src"
+  cp "$PLATFORM/frontend/package.json" "$UI/package.json"
+  echo "  $(find "$UI/src" -type f | wc -l | tr -d ' ') files -> frontend/vendor/quorum-ui"
 fi
 
 echo
