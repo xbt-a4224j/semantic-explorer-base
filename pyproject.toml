@@ -1,0 +1,25 @@
+[project]
+name = "semantic-quorum"
+version = "0.1.0"
+description = "A governed-answer layer: the model selects, the warehouse computes, thin slices are refused."
+requires-python = ">=3.12"
+dependencies = ["httpx", "pydantic", "pydantic-settings", "structlog", "PyYAML"]
+
+# Three extras rather than one dependency list. A domain that wants only the k-anonymity gate
+# should not have to install an OpenAI client to get it — the gate is ~40 lines and has no model
+# dependency at all.
+[project.optional-dependencies]
+agent = ["openai"]
+retrieval = ["numpy", "rank-bm25", "openai"]
+evals = ["numpy"]
+all = ["semantic-quorum[agent,retrieval,evals]"]
+
+[project.scripts]
+quorum = "quorum.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
