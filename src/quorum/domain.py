@@ -119,22 +119,24 @@ class Domain:
     #: Where the Cube model lives, relative to the domain repo root.
     cube_model: str = "cube/model"
 
-    #: What `quorum ingest` loads, for a domain whose data is CSV or JSON and which therefore
-    #: needs no parser of its own:
+    #: What `quorum ingest` loads, for a domain whose data is CSV/TSV/JSON/JSONL and which
+    #: therefore needs no parser of its own:
     #:
     #:     ingest:
-    #:       records: {path: data/records.csv, map: {id: matter_id}}
-    #:       facts:   {path: data/facts/*.jsonl, map: {record_id: matter_id,
-    #:                                                 subject: point, position: answer}}
+    #:       records: {path: data/records.csv, format: csv, map: {id: matter_id}}
+    #:       facts:   {path: data/facts.jsonl, format: jsonl, map: {record_id: matter_id,
+    #:                                                            subject: point, position: answer}}
     #:
-    #: The mapping is explicit rather than inferred at load. A reader that guessed which column
-    #: identified a record would be wrong on some corpus, silently, and no test anyone writes
-    #: would catch it — so the failure mode is a named error instead of a table full of nulls.
-    #: Columns NOT named here are not dropped; they land in `records.attributes` as JSONB, which
-    #: is the half that genuinely is automatic.
+    #: Both `format` and `map` are explicit, decided by whoever is onboarding the domain (see
+    #: SPEC-02), never inferred. This platform used to sniff format from a file's content and
+    #: guess column roles from their names; both were deleted, because both are judgment calls
+    #: a wrong pattern gets away with silently — a guessed format produces one row that looks
+    #: like data, and a guessed column produces a table full of nulls, neither raising anything.
+    #: Columns NOT named in `map` are not dropped; they land in `records.attributes` as JSONB,
+    #: which is the one part of this that genuinely needs no decision.
     #:
     #: Empty for a domain that ships its own parser. The reference corpus does, because MAUD is
-    #: nested JSON that no generic reader could sensibly guess at.
+    #: nested JSON no generic reader could sensibly guess at.
     ingest: dict[str, Any] = field(default_factory=dict)
 
     #: Free-form, for the UI. The platform does not read these.

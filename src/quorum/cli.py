@@ -200,13 +200,16 @@ def ingest_cmd(root: pathlib.Path) -> int:
     if not plan:
         print(
             "quorum.yaml has no `ingest:` block, so there is nothing to load generically.\n"
-            "A domain with its own parser runs that instead; a domain with CSV or JSON adds:\n\n"
+            "A domain with its own parser runs that instead; a domain with CSV/TSV/JSON/JSONL\n"
+            "adds one, with `format` and `map` both decided explicitly — see SPEC-02:\n\n"
             "  ingest:\n"
             "    records:\n"
             "      path: data/records.csv\n"
+            "      format: csv\n"
             "      map: {id: record_id, source_title: title}\n"
             "    facts:\n"
             "      path: data/facts.csv\n"
+            "      format: csv\n"
             "      map: {record_id: record_id, subject: topic, position: answer}\n",
             file=sys.stderr,
         )
@@ -224,11 +227,18 @@ def ingest_cmd(root: pathlib.Path) -> int:
             spec = plan.get(kind)
             if not spec:
                 continue
+            if "format" not in spec:
+                print(
+                    f"quorum.yaml's ingest.{kind} has no `format:` — this platform no longer "
+                    f"sniffs one. Declare csv, tsv, json or jsonl explicitly (SPEC-02).",
+                    file=sys.stderr,
+                )
+                return EXIT_INVALID
             for path in _paths(root, spec["path"]):
                 if kind == "records":
-                    report = loader(conn, path, spec["map"], domain.corpus)  # type: ignore[call-arg]
+                    report = loader(conn, path, spec["map"], domain.corpus, spec["format"])  # type: ignore[call-arg]
                 else:
-                    report = loader(conn, path, spec["map"])  # type: ignore[call-arg]
+                    report = loader(conn, path, spec["map"], spec["format"])  # type: ignore[call-arg]
                 total += report.rows_written
                 print(f"{kind:8} {report.rows_written:>7,} rows  {path.name}")
                 if report.unmapped:
@@ -325,11 +335,13 @@ def dev_cmd(root: pathlib.Path) -> int:
 
 
 def init_cmd(root: pathlib.Path, name: str | None) -> int:
-    """Write a starting manifest and Cube model from the files already in `data/`.
+    """Write the starting skeleton: directories, a template manifest, a template Cube model.
 
-    Reads the headers, infers the mapping, and writes something a human then edits. The file it
-    writes says so at the top: a generated config that presents itself as authoritative is worse
-    than none, because the next person assumes the guesses were decisions.
+    Nothing here is inferred from data — this file used to read `data/` and guess column roles
+    from their names, and the guesser missed its own worked example silently. Every field in
+    what this writes is a bracketed placeholder pointing at the spec that explains the decision
+    behind it (`docs/specs/` in the platform repo). Filling them in is SPEC-01 through SPEC-03,
+    not this command.
     """
     from quorum.scaffold import scaffold
 
@@ -337,11 +349,11 @@ def init_cmd(root: pathlib.Path, name: str | None) -> int:
     for path in written:
         print(f"wrote  {path.relative_to(root)}")
     print(
-        "\nNext:\n"
-        "  1. read quorum.yaml — every `# GUESS` line is one this could not know\n"
-        "  2. quorum migrate\n"
-        "  3. quorum ingest\n"
-        "  4. quorum check"
+        "\nNext — work through docs/specs/ in the platform repo, in order:\n"
+        "  1. SPEC-01 (corpus intake)   — fill in every <bracketed> value in quorum.yaml\n"
+        "  2. SPEC-02 (schema & ingest) — quorum migrate, then quorum ingest\n"
+        "  3. SPEC-03 (cube metadata)   — fill in cube/model/quorum.yml\n"
+        "  4. quorum check              — verifies 1-3 actually agree with each other"
     )
     return EXIT_OK
 

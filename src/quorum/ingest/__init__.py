@@ -14,7 +14,6 @@ from quorum.ingest.tabular import (
     load_facts,
     load_records,
     read_rows,
-    sniff,
 )
 
 __all__ = [
@@ -24,5 +23,4 @@ __all__ = [
     "load_facts",
     "load_records",
     "read_rows",
-    "sniff",
 ]

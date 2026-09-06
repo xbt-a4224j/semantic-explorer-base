@@ -1,310 +1,183 @@
-"""`quorum init` — read what is in `data/`, write a manifest that matches it.
+"""`quorum init` — write the skeleton a domain fills in by hand, or by following a spec.
 
-The onboarding claim this file has to make true: make a directory, drop files in `data/`, run
-two commands. Everything here exists to remove a step from that list.
+## What this used to do, and why it stopped
 
-## What it infers, and what it refuses to
+This file used to read the files already in `data/`, guess which column was the record id from
+its name, guess whether records and facts were CSV or JSONL from their content, and write a
+`quorum.yaml` that looked finished. It was deleted on instruction, and the reason is not
+hypothetical: the guesser's own `_id$` pattern was matched with `re.match`, which anchors at the
+START of a string, so it never matched `citation_id` — the exact column the third worked-example
+corpus used to prove the platform was domain-free. It produced a manifest with no records file
+and raised nothing. A confident wrong guess is worse than an honest blank, because a blank gets
+read.
 
-It reads the headers and guesses which columns are the record id, the subject and the answer,
-using name patterns. Those guesses are marked `# GUESS` in the file it writes.
+## What replaced it
 
-It does NOT guess silently. A generated config that presents itself as authoritative is worse
-than no config at all, because the next person reads it as a set of decisions rather than a set
-of assumptions — and the assumption that matters here is which column identifies a record, which
-is wrong-able in a way that produces a plausible, empty app rather than an error.
+`docs/specs/` in this repository — SPEC-01 (corpus intake) through SPEC-05 (frontend naming).
+Onboarding a domain is now: run `quorum init` for the skeleton and a template with every
+placeholder marked, then work through the specs — by hand, or in an agent session that reads
+them — to turn each placeholder into a real decision. `quorum check` is what verifies the result,
+not this file.
 
-## Why it writes a Cube model too
-
-A manifest naming members that nothing defines is the failure `quorum check` exists to catch,
-and shipping `init` without a model would guarantee it on every new domain. The generated model
-is minimal — the counts, the subject axis, the answer dimension, a median — which is exactly the
-set the four question shapes need and nothing more.
+This file's only remaining job is mechanical: make the directories, write a template that will
+not silently pass as configuration (every guessable field is a bracketed placeholder, not a
+plausible-looking default), and never overwrite something a person already started filling in.
 """
 
 from __future__ import annotations
 
 import pathlib
 import re
-from typing import Any
-
-from quorum.ingest import UnknownFormat, read_rows, sniff
-
-#: Column-name patterns, most specific first. Deliberately short: a longer list guesses more
-#: often and is wrong more often, and every wrong guess here is one a human has to notice.
-PATTERNS = {
-    # `.*_id$` rather than `_id$`: these are used with re.search, but writing the anchors out is
-    # the point. The first version used re.match with a bare `_id$`, which anchors at the START
-    # of the string and therefore never matched `citation_id` — the exact column it was written
-    # for. Silent: it produced a manifest with no records file and no error.
-    "id": (r"^id$", r"^(record|matter|case|doc|document|entity|item)_?id$", r"^\w+_id$"),
-    "subject": (
-        r"^(deal_?point|subject|field|attribute|question|topic|code|kind|type)s?_?(name)?$",
-    ),
-    "position": (r"^(position|answer|value|response|result|finding|severity|status)s?$",),
-    "source_title": (r"^(title|name|label|caption|description|summary)$",),
-    "numeric_value": (r"^(numeric_?value|amount|days|months|years|percent|score|count|n)$",),
-}
-
-DATA_SUFFIXES = (".csv", ".tsv", ".json", ".jsonl", ".ndjson", ".gz")
 
 
-def _match(columns: list[str], role: str) -> str | None:
-    """The first column matching this role's patterns, most specific pattern first.
-
-    Patterns are fully anchored and matched with `fullmatch`, so a pattern's intent and its
-    behaviour cannot diverge. They did once: `_id$` under `re.match` anchors at the start and
-    matched nothing, which produced a manifest missing its records file and no error at all.
-    """
-    for pattern in PATTERNS[role]:
-        for column in columns:
-            if re.fullmatch(pattern, column.strip().lower()):
-                return column
-    return None
-
-
-def data_files(root: pathlib.Path) -> list[pathlib.Path]:
-    """Every readable data file under `data/`, shallowest first.
-
-    Shallowest first because `data/records.csv` is a better guess at the primary file than
-    `data/raw/shard-07/part.csv`, and the ordering is the only signal available.
-    """
-    data = root / "data"
-    if not data.exists():
-        return []
-    found = [
-        p
-        for p in data.rglob("*")
-        if p.is_file() and p.suffix.lower() in DATA_SUFFIXES and not p.name.startswith(".")
-    ]
-    return sorted(found, key=lambda p: (len(p.relative_to(data).parts), p.name))
-
-
-def columns_of(path: pathlib.Path) -> list[str]:
-    """The first row's keys, or [] when the file cannot be read as rows."""
-    try:
-        sniff(path)
-        for row in read_rows(path):
-            return list(row)
-    except (UnknownFormat, OSError, UnicodeDecodeError, ValueError):
-        # A file this cannot read is simply not a candidate. Narrow rather than bare, so a bug
-        # in the reader surfaces as a crash during `init` instead of as an empty manifest —
-        # "found no data files" and "the reader is broken" must not look the same.
-        return []
-    return []
-
-
-def classify(root: pathlib.Path) -> dict[str, dict[str, Any]]:
-    """Which file is records and which is facts, with a column mapping for each.
-
-    The rule is structural rather than name-based: a facts file has a subject column AND an
-    answer column; a records file is the one with an id and the most other columns. Naming
-    conventions differ per corpus, but the long shape does not — that is the whole reason the
-    schema is long.
-    """
-    plan: dict[str, dict[str, Any]] = {}
-    for path in data_files(root):
-        columns = columns_of(path)
-        if not columns:
-            continue
-        subject = _match(columns, "subject")
-        position = _match(columns, "position")
-        identifier = _match(columns, "id")
-
-        if subject and position and identifier and "facts" not in plan:
-            mapping = {"record_id": identifier, "subject": subject, "position": position}
-            numeric = _match(columns, "numeric_value")
-            if numeric:
-                mapping["numeric_value"] = numeric
-            plan["facts"] = {
-                "path": str(path.relative_to(root)),
-                "map": mapping,
-                "columns": columns,
-            }
-        elif identifier and "records" not in plan:
-            mapping = {"id": identifier}
-            title = _match(columns, "source_title")
-            if title:
-                mapping["source_title"] = title
-            plan["records"] = {
-                "path": str(path.relative_to(root)),
-                "map": mapping,
-                "columns": columns,
-            }
-    return plan
-
-
-def _yaml_map(mapping: dict[str, str]) -> str:
-    return ", ".join(f"{k}: {v}" for k, v in mapping.items())
-
-
-def manifest_text(name: str, plan: dict[str, dict[str, Any]]) -> str:
-    """The starting quorum.yaml. Every inferred value is marked."""
+def manifest_text(name: str) -> str:
+    """The starting `quorum.yaml`. Nothing in it is inferred from data — see SPEC-01."""
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "corpus"
-    records = plan.get("records", {})
-    unmapped = [c for c in records.get("columns", []) if c not in records.get("map", {}).values()]
+    return f"""\
+# Written by `quorum init`. Every <bracketed> value is a decision this file does not make for
+# you — read docs/specs/SPEC-01-corpus-intake.md in the platform repo before filling one in.
+# The most consequential is `subject_axis`: get it wrong and the app answers nothing, and the
+# symptom (every question declining) looks like a model problem rather than this file.
 
-    lines = [
-        "# Written by `quorum init` from the files in data/.",
-        "#",
-        "# Lines marked GUESS were inferred from column names. They are assumptions, not",
-        "# decisions — read every one before trusting a number this app produces. The one that",
-        "# matters most is `subject_axis`: get it wrong and the app answers nothing, and the",
-        "# symptom (every question declining) looks like a model problem rather than this file.",
-        "",
-        f"name: {name}",
-        f"corpus: {slug}",
-        "",
-        "# The dimension nearly every question is about. GUESS.",
-        "subject_axis: facts.subject",
-        "# How the subject came out — grouped to make a distribution. GUESS.",
-        "answer_dimension: facts.position",
-        "",
-        "# Counts at two grains. They differ, and the difference matters: one row per answer is",
-        "# not one row per record, and reading the inflated one lets a thin slice clear the gate.",
-        "count_measure: facts.n",
-        "record_count: records.n",
-        "count_measures:",
-        "  - records.n",
-        "  - facts.n",
-        "",
-        "selectable:",
-        "  - records",
-        "  - facts",
-        "",
-        "strings:",
-        "  record: record",
-        "  records: records",
-        "  subject: subject",
-        "  subject_title: subject",
-        "  subject_heading: SUBJECT",
-        "  colloquial: records",
-        f"  corpus_description: {name}",
-        "  analyst: an analyst",
-        "  terms_of_art: []",
-        "  absent: []",
-    ]
+name: {name}
+corpus: {slug}
 
-    if plan:
-        lines += ["", "ingest:"]
-        for kind in ("records", "facts"):
-            spec = plan.get(kind)
-            if spec:
-                lines += [
-                    f"  # GUESS — from the headers of {pathlib.Path(spec['path']).name}",
-                    f"  {kind}:",
-                    f"    path: {spec['path']}",
-                    f"    map: {{{_yaml_map(spec['map'])}}}",
-                ]
-        if unmapped:
-            shown = ", ".join(unmapped[:10])
-            lines += [
-                "",
-                f"# Columns not mapped above land in records.attributes as JSONB: {shown}",
-                "# Nothing is dropped. Query them in the Cube model as attributes->>'key'.",
-            ]
-    else:
-        lines += [
-            "",
-            "# No readable CSV/TSV/JSON/JSONL found under data/, so no ingest block was",
-            "# written. Drop the files in and re-run `quorum init`, or write a parser and",
-            "# leave this out.",
-        ]
-    return "\n".join(lines) + "\n"
+# THE dimension nearly every question is about. Ask: "if a person asked this corpus ten
+# questions, what noun would most of them name?" That is the SUBJECT — usually finer-grained
+# than the record it lives on, and a different dimension from it. See SPEC-01's worked example.
+subject_axis: <cube>.<dimension>
+# How the subject's answer came out, grouped to make a distribution.
+answer_dimension: <cube>.<dimension>
+
+# Two DIFFERENT grains. count_measure is at the subject's own grain (one row per answer);
+# record_count is at the record's grain (one row per record). They differ on every corpus with
+# sub-record structure — 89x on the reference corpus — and conflating them is what let a slice
+# of one clear a k-anonymity threshold of five. `quorum check` refuses if these are equal.
+count_measure: <cube>.<measure>
+record_count: <cube>.<measure>
+
+# EVERY count measure the min_n gate should read, widest grain first. Must include
+# count_measure. List more than two if a third grain exists (a numeric-answer count, an
+# explicit distinct-record count) — a count the gate cannot see is a count it cannot gate on.
+count_measures:
+  - <cube>.<measure>
+  - <cube>.<measure>
+
+# Percentile measures over the subject's numeric answers, and the ONE thing that must travel
+# with them: numeric_count, the percentile's own denominator. Most subjects are categorical, so
+# this is smaller than count_measure — 809 of 12,937 on the reference corpus — and `quorum
+# check` refuses to load numeric_measures with no numeric_count declared.
+numeric_measures: []
+numeric_count: ""
+
+selectable:
+  - <cube>
+excluded_measures: []
+
+# The prompt's nouns — NOT the frontend's words (those are strings.ts, SPEC-05). This block is
+# narrower: it exists to fill in the selection prompt, and a wrong word here changes the prompt
+# without changing its byte-identity test, silently. See SPEC-01 for the two traps already hit:
+# `colloquial` must differ from `records` (a user SAYS "deals", the shapes COUNT "agreements"),
+# and `absent` items need full phrases because the prompt repeats "no" before each one.
+strings:
+  record: <singular noun for one row>
+  records: <plural>
+  subject: <singular noun for the subject axis>
+  subject_title: <slightly more formal form>
+  subject_heading: <ALL CAPS, for a prompt section header>
+  colloquial: <how a USER says "records" in conversation>
+  corpus_description: <one phrase, what this corpus IS>
+  terms_of_art: []
+  absent: []
+  scope_reason: <why an unscoped percentile is refused, in this corpus's own units>
+  analyst: <who is asking — e.g. "an analyst", "a reviewer">
+
+# Facts about this corpus's DOCUMENTS, not this deployment — see SPEC-01. Leave at 0 (disabled)
+# until you have a real measurement of this corpus's span lengths; a wrong threshold renders a
+# labelled answer as an excerpt of the wrong thing, which reads as a correct answer and is not.
+max_clause_chars: 0
+excerpt_chars: 1200
+
+# Only for a domain with no parser of its own. `format` is required per entry and is a decision,
+# never sniffed — see SPEC-02. Delete this whole block if you are writing your own ingest.
+# ingest:
+#   records: {{path: data/records.csv, format: csv, map: {{id: <column>}}}}
+#   facts:   {{path: data/facts.csv,   format: csv, map: {{record_id: <column>, subject: <column>, position: <column>}}}}
+"""
 
 
-def cube_model_text(plan: dict[str, dict[str, Any]]) -> str:
-    """A minimal model: exactly the members the four question shapes need.
+def cube_model_text() -> str:
+    """The starting Cube model. Two cubes, the members SPEC-01's manifest already commits you
+    to, every `sql:` a placeholder — see SPEC-03 for how each one gets filled in."""
+    return """\
+# Written by `quorum init`. Fill in every <placeholder> against docs/specs/SPEC-03-cube-metadata.md
+# in the platform repo. The member NAMES here must match what quorum.yaml names — `quorum
+# check` verifies that once both files are real.
+cubes:
+  - name: records
+    sql_table: public.records
+    measures:
+      - name: n
+        type: count
+        title: Records
+        description: One row per record. The denominator for anything about records.
+    dimensions:
+      - name: id
+        sql: id
+        type: string
+        primary_key: true
+      - name: category
+        sql: category_code
+        type: string
+        meta:
+          # Required if this dimension is ever a filter. Without it, filter-value resolution
+          # (SPEC-04) has nothing to resolve against, and a near-miss returns zero rows that
+          # read as "we have no records like that" rather than "you named something we do not
+          # carry".
+          closed_vocabulary: true
 
-    Minimal on purpose. Every member offered to the agent is one it can pick wrongly, and a
-    generated model full of speculative measures makes the selection problem harder for no
-    benefit to a domain that has not decided what it wants yet.
-    """
-    numeric = "numeric_value" in plan.get("facts", {}).get("map", {})
-    lines = [
-        "# Written by `quorum init`. The minimum the four question shapes need:",
-        "# a count at each grain, the subject axis, the answer dimension, and a median.",
-        "#",
-        "# Add measures as you decide you want them. Every member here is one the agent may",
-        "# select, so an unconsidered measure is a wrong answer waiting to be chosen.",
-        "cubes:",
-        "  - name: records",
-        "    sql_table: public.records",
-        "    measures:",
-        "      - name: n",
-        "        type: count",
-        "        title: Records",
-        "        description: One row per record. The denominator for anything about records.",
-        "    dimensions:",
-        "      - name: id",
-        "        sql: id",
-        "        type: string",
-        "        primary_key: true",
-        "      - name: category",
-        "        sql: category_code",
-        "        type: string",
-        "        meta:",
-        "          closed_vocabulary: true",
-        "",
-        "  - name: facts",
-        "    sql_table: public.facts",
-        "    joins:",
-        "      - name: records",
-        "        relationship: many_to_one",
-        '        sql: "{CUBE}.record_id = {records}.id"',
-        "    measures:",
-        "      - name: n",
-        "        type: count",
-        "        title: Answers",
-        "        description: >-",
-        "          One row per ANSWER, not per record. A record with twelve answers counts",
-        "          twelve times here, so this is never the denominator for a claim about",
-        "          records — use records.n for that.",
-        "      - name: count_distinct_records",
-        "        type: count_distinct",
-        "        sql: record_id",
-        "        description: Records with an answer on the selected subject.",
-    ]
-    if numeric:
-        lines += [
-            "      - name: numeric_n",
-            "        type: count",
-            "        title: Answers carrying a number",
-            "        filters:",
-            '          - sql: "{CUBE}.numeric_value IS NOT NULL"',
-            "        description: >-",
-            "          THE DENOMINATOR FOR THE PERCENTILE BELOW. Most subjects are categorical,",
-            "          so this is far smaller than facts.n — a median reported against facts.n",
-            "          claims a sample it does not have.",
-            "      - name: median_numeric_value",
-            "        type: number",
-            '        sql: "PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY {CUBE}.numeric_value)"',
-            "        description: >-",
-            "          Median, NOT mean: a mean reports the tail rather than the market. Filter",
-            "          to one subject first or this mixes units into a meaningless number.",
-        ]
-    lines += [
-        "    dimensions:",
-        "      - name: subject",
-        "        sql: subject",
-        "        type: string",
-        "        meta:",
-        "          # Required. Filter values are resolved against this dimension's own values;",
-        "          # without the declaration a near-miss returns zero rows, which reads as",
-        "          # 'we have no records like that' rather than as a naming error.",
-        "          closed_vocabulary: true",
-        "      - name: position",
-        "        sql: position",
-        "        type: string",
-        "        meta:",
-        "          closed_vocabulary: true",
-    ]
-    return "\n".join(lines) + "\n"
+  - name: facts
+    sql_table: public.facts
+    joins:
+      - name: records
+        relationship: many_to_one
+        sql: "{CUBE}.record_id = {records}.id"
+    measures:
+      - name: n
+        type: count
+        title: Answers
+        description: >-
+          One row per ANSWER, not per record. Never the denominator for a claim about
+          records — see SPEC-01's count_measure vs record_count.
+      - name: count_distinct_records
+        type: count_distinct
+        sql: record_id
+        description: Records with an answer on the selected subject.
+      # Uncomment only if this corpus has numeric answers, and pair with numeric_count in
+      # quorum.yaml — see SPEC-03 for why the denominator must be its own measure.
+      # - name: numeric_n
+      #   type: count
+      #   filters: [{sql: "{CUBE}.numeric_value IS NOT NULL"}]
+      # - name: median_numeric_value
+      #   type: number
+      #   sql: "PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY {CUBE}.numeric_value)"
+    dimensions:
+      - name: subject
+        sql: subject
+        type: string
+        meta:
+          closed_vocabulary: true
+      - name: position
+        sql: position
+        type: string
+        meta:
+          closed_vocabulary: true
+"""
 
 
 def scaffold(root: pathlib.Path, name: str) -> list[pathlib.Path]:
-    """Write the manifest and model. Never overwrites: re-running is safe."""
+    """Write the template manifest and model. Never overwrites — re-running is always safe."""
     root = pathlib.Path(root)
-    plan = classify(root)
     written: list[pathlib.Path] = []
 
     (root / "data").mkdir(parents=True, exist_ok=True)
@@ -312,12 +185,12 @@ def scaffold(root: pathlib.Path, name: str) -> list[pathlib.Path]:
 
     manifest = root / "quorum.yaml"
     if not manifest.exists():
-        manifest.write_text(manifest_text(name, plan))
+        manifest.write_text(manifest_text(name))
         written.append(manifest)
 
     model = root / "cube" / "model" / "quorum.yml"
     if not model.exists():
-        model.write_text(cube_model_text(plan))
+        model.write_text(cube_model_text())
         written.append(model)
 
     return written

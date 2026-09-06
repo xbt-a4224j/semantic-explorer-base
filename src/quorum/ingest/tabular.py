@@ -1,28 +1,35 @@
-"""Read whatever the domain dropped in the folder, and load it into the spine.
+"""Read a file the domain manifest points at, in the format the manifest DECLARES.
 
-## The formats, and why these
+## No sniffing. That was tried and it was the wrong fix.
 
-`.csv`, `.tsv`, `.json`, `.jsonl`/`.ndjson`, and any of those inside a `.gz`. Every one is in the
-standard library, which is the reason the list stops there: Parquet would mean a hard pyarrow
-dependency for a platform whose whole install is otherwise five small packages. A domain with
-Parquet converts it in one pandas line and keeps the dependency in its own repo, where it
-belongs.
+This module used to guess format from content — a `.json` file is really JSONL if a second
+`{` follows the first, a `.txt` export is really TSV if it has more tabs than commas. It was
+deleted, on instruction, along with the column-name pattern matching that used to write
+`quorum.yaml` for you: both were a platform trying to make a judgment call cheaply, and both
+failed on their own worked examples without raising anything. A wrong guess here does not error;
+it produces one giant garbage row, which is the exact failure this whole product exists to
+avoid — a result that looks like a result.
 
-Detection is by extension and then by content. Extension alone is wrong often enough to matter —
-exports named `.txt` that are TSV, `.json` files that are really JSONL — and a wrong guess here
-does not error, it produces one giant garbage row, which is the failure this whole product
-exists to avoid: a result that looks like a result.
+So `format` is a required, explicit field in the manifest's `ingest:` block — a decision SPEC-02
+asks whoever is onboarding a domain (human or agent) to make and verify by reading real output,
+not a pattern this module infers. `read_rows` raises if the declared format is not one of the
+four supported; it does not fall back to guessing one.
+
+## The formats, and why these four
+
+`csv`, `tsv`, `json`, `jsonl` (`ndjson` is accepted as an alias), and any of those gzipped.
+Every reader is in the standard library, which is why the list stops there: Parquet would mean a
+hard pyarrow dependency for a platform whose whole install is otherwise five small packages. A
+domain with Parquet converts it in one pandas line and keeps the dependency in its own repo.
 
 ## What "handled automatically" does and does not mean
 
-Column NAMES still have to line up with the spine, and that is deliberate. A reader that guessed
-which column was the record id would be wrong on some corpus, silently, and no test anyone
-writes would catch it. So the mapping is explicit in `quorum.yaml` — `ingest.records.id: matter`
-— and the failure mode is a named error at load rather than a plausible table full of nulls.
-
-Everything NOT mapped goes to `records.attributes` as JSONB. That is the half that is genuinely
-automatic: a new column in the source file needs no migration, no model edit, and shows up
-queryable.
+Column NAMES still map explicitly in `quorum.yaml` — `ingest.records.map.id: matter_id` — for
+the same reason format is no longer sniffed: a reader that guessed which column was the record
+id would be wrong on some corpus, silently, and no test anyone writes would catch it. Everything
+NOT mapped lands in `records.attributes` as JSONB, which is the half that genuinely is
+automatic — a new column in the source file needs no migration, no model edit, and shows up
+queryable immediately.
 """
 
 from __future__ import annotations
@@ -63,13 +70,6 @@ def _open(path: pathlib.Path) -> io.TextIOBase:
     if path.suffix == ".gz":
         return gzip.open(path, "rt", encoding="utf-8", newline="")
     return path.open("r", encoding="utf-8", newline="")
-
-
-def _stem_suffix(path: pathlib.Path) -> str:
-    """The format-bearing suffix, looking through `.gz`."""
-    if path.suffix == ".gz":
-        return pathlib.Path(path.stem).suffix.lower()
-    return path.suffix.lower()
 
 
 def _read_delimited(path: pathlib.Path, delimiter: str) -> Iterator[dict[str, Any]]:
@@ -118,61 +118,34 @@ def _read_jsonl(path: pathlib.Path) -> Iterator[dict[str, Any]]:
                 yield row
 
 
-#: Extension -> reader. The whole supported set, in one place a reader can check.
+#: Declared format name -> reader. Keyed by what a manifest SAYS, never by what a file's
+#: extension or content happens to look like.
 READERS = {
-    ".csv": lambda p: _read_delimited(p, ","),
-    ".tsv": lambda p: _read_delimited(p, "\t"),
-    ".json": _read_json,
-    ".jsonl": _read_jsonl,
-    ".ndjson": _read_jsonl,
+    "csv": lambda p: _read_delimited(p, ","),
+    "tsv": lambda p: _read_delimited(p, "\t"),
+    "json": _read_json,
+    "jsonl": _read_jsonl,
+    "ndjson": _read_jsonl,
 }
 
 
-def sniff(path: pathlib.Path) -> str:
-    """The format, from the extension and then from the content.
+def read_rows(path: pathlib.Path | str, format: str) -> Iterator[dict[str, Any]]:
+    """Every row in one file, read as the manifest DECLARES it — never sniffed.
 
-    Content wins over extension, because the extension is what people get wrong: a `.json` file
-    that is really JSONL parses as neither, and a `.txt` export that is really TSV read as CSV
-    produces one column per row. Neither errors. Both produce a table that looks loaded.
+    `format` is required and must be one of `READERS`. This is a validation of a stated value,
+    not an inference: the decision of what format a file is belongs to whoever wrote the
+    manifest (see SPEC-02), verified by looking at real output, not to a heuristic run at load
+    time with no chance to be checked first.
     """
-    suffix = _stem_suffix(path)
-
-    with _open(path) as handle:
-        head = handle.read(4096).lstrip()
-
-    if head.startswith("["):
-        return ".json"
-    if head.startswith("{"):
-        # An object per line is JSONL; a single object is JSON. "Does the first line end in }"
-        # is NOT the test — a compact one-line `{"data": [...]}` ends in `}` too, and reading it
-        # as JSONL yields one row containing the whole export. What separates them is whether a
-        # SECOND object follows.
-        rest = head.split("\n", 1)[1].lstrip() if "\n" in head else ""
-        return ".jsonl" if rest.startswith("{") else ".json"
-
-    if suffix in (".csv", ".tsv"):
-        return suffix
-    # A delimited file with an unhelpful extension. Tab beats comma when the first line has
-    # more tabs, which is the only case worth guessing at because the two are unambiguous.
-    first_line = head.split("\n", 1)[0]
-    if "\t" in first_line and first_line.count("\t") >= first_line.count(","):
-        return ".tsv"
-    if "," in first_line:
-        return ".csv"
-
-    raise UnknownFormat(
-        f"{path.name} is not CSV, TSV, JSON or JSONL as far as this can tell. Supported "
-        f"extensions are {sorted(READERS)} plus .gz of any of them. Nothing was read — a "
-        f"guessed format produces a table that looks loaded and is not."
-    )
-
-
-def read_rows(path: pathlib.Path | str) -> Iterator[dict[str, Any]]:
-    """Every row in one file, whatever shape it arrived in."""
     path = pathlib.Path(path)
     if not path.exists():
         raise FileNotFoundError(f"no such file: {path}")
-    return READERS[sniff(path)](path)
+    if format not in READERS:
+        raise UnknownFormat(
+            f"{path.name}: {format!r} is not a format this platform reads. "
+            f"Declare one of {sorted(READERS)} in the manifest's ingest block."
+        )
+    return READERS[format](path)
 
 
 def _split(row: dict[str, Any], mapping: dict[str, str]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -188,6 +161,7 @@ def load_records(
     path: pathlib.Path | str,
     mapping: dict[str, str],
     corpus: str,
+    format: str,
 ) -> IngestReport:
     """Upsert one file of records. Unmapped columns land in `attributes`.
 
@@ -202,7 +176,7 @@ def load_records(
             "wrong on some corpus silently, and no test would catch it."
         )
     report = IngestReport(source=path.name)
-    for row in read_rows(path):
+    for row in read_rows(path, format):
         spine, extra = _split(row, mapping)
         if not spine.get("id"):
             report.skipped.append(str(row)[:80])
@@ -245,7 +219,9 @@ def load_records(
     return report
 
 
-def load_facts(conn: Any, path: pathlib.Path | str, mapping: dict[str, str]) -> IngestReport:
+def load_facts(
+    conn: Any, path: pathlib.Path | str, mapping: dict[str, str], format: str
+) -> IngestReport:
     """Upsert one file of facts — one row per answer, the long shape.
 
     A fact whose `record_id` has no record is skipped and counted rather than failing the load.
@@ -257,7 +233,7 @@ def load_facts(conn: Any, path: pathlib.Path | str, mapping: dict[str, str]) -> 
         if required not in mapping:
             raise ValueError(f"facts mapping needs `{required}`")
     report = IngestReport(source=path.name)
-    for row in read_rows(path):
+    for row in read_rows(path, format):
         spine, _ = _split(row, mapping)
         if not (spine.get("record_id") and spine.get("subject")):
             report.skipped.append(str(row)[:80])
