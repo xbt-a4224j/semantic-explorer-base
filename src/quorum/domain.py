@@ -28,6 +28,7 @@ place. A manifest is checked into the domain repo and is the same on every machi
 
 from __future__ import annotations
 
+import dataclasses
 import pathlib
 from dataclasses import dataclass, field
 from typing import Any
@@ -233,6 +234,23 @@ def load(root: pathlib.Path | str = ".") -> Domain:
     for key in ("numeric_measures", "selectable", "excluded_measures", "count_measures"):
         if isinstance(raw.get(key), list):
             raw[key] = tuple(raw[key])
-    domain = Domain(**raw)
+    try:
+        domain = Domain(**raw)
+    except TypeError as exc:
+        # A half-filled manifest reached the dataclass constructor and raised a TypeError,
+        # which surfaces as a traceback naming `Domain.__init__` — a message about this file's
+        # internals in answer to a question about the reader's config. Every other failure here
+        # names the field and says what it does; this one has to as well.
+        required = [
+            f.name
+            for f in Domain.__dataclass_fields__.values()
+            if f.default is dataclasses.MISSING and f.default_factory is dataclasses.MISSING  # type: ignore[misc]
+        ]
+        missing = [name for name in required if name not in raw]
+        raise InvalidDomain(
+            f"{MANIFEST} is missing required field(s): {missing or sorted(required)}. "
+            f"Every domain must declare at least {required} — run `quorum init` to write a "
+            f"starting point ({exc})."
+        ) from exc
     domain.validate()
     return domain
