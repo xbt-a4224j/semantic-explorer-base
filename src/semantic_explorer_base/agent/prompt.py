@@ -54,6 +54,29 @@ def build(domain: Domain) -> str:
     terms = s.get("terms_of_art") or ()
     absent = s.get("absent") or ()
 
+    # The slice a question is asked OF, distinct from the subject it is asked ABOUT. Added
+    # after "what are the cash-only deals in healthcare?" returned the corpus-wide split: the
+    # subject resolved, the word `healthcare` had nowhere to go, and the answer looked right.
+    # Only emitted when the domain declares scope dimensions, so a corpus with none keeps the
+    # benchmarked prompt byte-for-byte.
+    scope_block = ""
+    if getattr(domain, "scope_dimensions", ()):
+        scope_block = (
+            "\n\nSCOPE\n"
+            f"A question may also name SLICES of the corpus — which {records} to look at, "
+            f"rather than which {subject} to look at. Return one entry in `scopes` for EACH "
+            "slice named, with `dimension` (one of the listed members) and `value` (the words "
+            "the question used, verbatim: write 'healthcare', not a guess at how the data "
+            "spells it). Return an empty list when the question names no slice.\n"
+            "Return every slice you see, INCLUDING one you doubt this corpus carries. Whether "
+            "the value exists is checked afterwards against the real column, and a slice you "
+            "leave out is not checked at all — it is silently ignored, and the answer then "
+            "describes the whole corpus while appearing to answer the narrower question.\n"
+            f"Slices are INDEPENDENT of the shape: 'how many {s.get('colloquial', records)} "
+            "are healthcare' is a count with a scope, and 'is a cash deal market for healthcare' "
+            "is a distribution with a scope."
+        )
+
     term_line = (
         f"Terms of art map to their point: {', '.join(repr(t) for t in terms)} each name one.\n\n"
         if terms
@@ -96,4 +119,5 @@ def build(domain: Domain) -> str:
         f"Also return `covers_the_question`: true only if the {subject} you chose actually "
         "answers what was asked. Choosing the closest available point and marking it false is "
         "the right response when this taxonomy does not cover the question."
+        + scope_block
     )

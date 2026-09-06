@@ -22,7 +22,8 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from semantic_explorer_base.agent.pick_value import PICK_MODEL
+from semantic_explorer_base.agent.pick_value import PICK_MODEL, pick_value
+from semantic_explorer_base.agent.resolve import UnresolvedValue, resolve_against
 from semantic_explorer_base.agent.prompt import build
 from semantic_explorer_base.agent.shape import SHAPES, selection_for
 from semantic_explorer_base.domain import Domain
@@ -50,6 +51,14 @@ class Interpretation:
     shape: str | None = None
     subject: str | None = None
     cannot_answer: bool = False
+    #: The record-level slices, once resolved — (("comparable_deals.label", "Health Care
+    #: Industry"),) for a question about healthcare deals. Carried so a caller can SHOW the
+    #: reader which slices were applied; a scope silently applied is barely better than one
+    #: silently dropped. A question may name more than one.
+    scope: tuple[tuple[str, str], ...] | None = None
+    #: Set when the question named a slice this corpus does not carry. Distinct from
+    #: `cannot_answer`, which is about the question; this is about one word in it.
+    unresolved_scope: str | None = None
 
     def __bool__(self) -> bool:
         return self.selection is not None
@@ -87,14 +96,37 @@ def interpretation_schema(
     """
     field = subject_field(domain)
     safe = {n.replace('"', "'"): n for n in glosses}
+    properties: dict[str, Any] = {
+        "shape": {"type": ["string", "null"], "enum": [*SHAPES, None]},
+        field: {"type": ["string", "null"], "enum": [*safe, None]},
+        "covers_the_question": {"type": "boolean"},
+    }
+    # The asymmetry `agent.resolve` is built around, made explicit in the schema: the DIMENSION
+    # is enum-locked, so a slice this corpus cannot take is undecodable; the VALUE is free text,
+    # because a person says "healthcare" where the data holds "Health Care Industry". Locking
+    # the value to the corpus's own strings would mean listing every industry, year and band in
+    # the schema, and would still not accept the word people actually type.
+    scope_dims = list(getattr(domain, "scope_dimensions", ()) or ()) if domain else []
+    if scope_dims:
+        # A LIST, because "how many healthcare deals signed in 2021" names two slices and a
+        # single-valued field made the model choose one and drop the other in silence — the
+        # same failure this whole field exists to close, one layer in.
+        properties["scopes"] = {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "dimension": {"type": "string", "enum": scope_dims},
+                    "value": {"type": "string"},
+                },
+                "required": ["dimension", "value"],
+                "additionalProperties": False,
+            },
+        }
     schema: dict[str, Any] = {
         "type": "object",
-        "properties": {
-            "shape": {"type": ["string", "null"], "enum": [*SHAPES, None]},
-            field: {"type": ["string", "null"], "enum": [*safe, None]},
-            "covers_the_question": {"type": "boolean"},
-        },
-        "required": ["shape", field, "covers_the_question"],
+        "properties": properties,
+        "required": list(properties),
         "additionalProperties": False,
     }
     return schema, safe
@@ -108,8 +140,8 @@ def choose_interpretation(
     *,
     glosses: dict[str, list[str]] | None = None,
     cube_url: str = "",
-) -> tuple[str | None, str | None, bool]:
-    """Shape and subject, in one enum-constrained call, with a self-check.
+) -> tuple[str | None, str | None, bool, list[tuple[str, str]]]:
+    """Shape, subject and any record-level slice, in one enum-constrained call, with a self-check.
 
     The self-check is structural rather than a sterner prompt, and that distinction was
     measured. Telling the model to be strict about null fixed the four questions the taxonomy
@@ -121,7 +153,7 @@ def choose_interpretation(
     overfitting — it would not survive a term nobody thought of.
     """
     if not api_key:
-        return None, None, False
+        return None, None, False, []
 
     from openai import OpenAI
 
@@ -157,8 +189,22 @@ def choose_interpretation(
     covers = bool(out.get("covers_the_question"))
     if not covers:
         subject = None
-    log.info("interpretation", question=question, shape=shape, subject=subject, covers=covers)
-    return shape, subject, covers
+    # Raw, unresolved: "healthcare", not a value the corpus carries. Resolution is `interpret`'s
+    # job because it is the layer that may decline, and a decline is an answer.
+    scope = [
+        (item["dimension"], item["value"])
+        for item in (out.get("scopes") or [])
+        if item.get("dimension") and item.get("value")
+    ]
+    log.info(
+        "interpretation",
+        question=question,
+        shape=shape,
+        subject=subject,
+        covers=covers,
+        scope=scope,
+    )
+    return shape, subject, covers, scope
 
 
 def subject_glosses(
@@ -198,6 +244,7 @@ def interpret(
     api_key: str | None = None,
     *,
     choose: Any = None,
+    resolve: Any = None,
     usage: list[tuple[int, int]] | None = None,
     cube_url: str = "",
 ) -> Interpretation:
@@ -211,14 +258,18 @@ def interpret(
     half the latency — they are not independent, and knowing a question is about a tail period
     tells you it wants a number.
 
-    `choose` is injectable so the pipeline is testable with no key and no network.
+    `choose` and `resolve` are injectable so the pipeline is testable with no key and no
+    network — one seam per model call.
     """
     usage = usage if usage is not None else []
     choose = choose or (
         lambda q: choose_interpretation(q, domain, api_key, usage, cube_url=cube_url)
     )
+    resolve = resolve or (
+        lambda dim, raw: resolve_scope(domain, dim, raw, api_key, cube_url=cube_url)
+    )
 
-    shape, subject, covers = choose(question)
+    shape, subject, covers, raw_scope = choose(question)
 
     # No shape at all, and the model says the corpus has nothing: final.
     if shape is None:
@@ -246,7 +297,48 @@ def interpret(
             )
             return Interpretation()
 
-    log.info("interpret", question=question, shape=shape, subject=subject)
+    scope_filters: list[dict[str, Any]] = []
+    scope: tuple[tuple[str, str], ...] = ()
+    for dimension, raw_value in raw_scope:
+        try:
+            resolved = resolve(dimension, raw_value)
+        except UnresolvedValue as exc:
+            # The word is in the question and the corpus has nothing by that name. Declining is
+            # the whole point: answering corpus-wide here returns a real number for a question
+            # nobody asked, which is what "cash-only deals in healthcare" did before this.
+            log.info("interpret_unresolved_scope", question=question, raw=exc.raw)
+            return Interpretation(unresolved_scope=str(exc))
+        scope = (*scope, (dimension, resolved))
+        scope_filters.append({"member": dimension, "operator": "equals", "values": [resolved]})
+
+    log.info("interpret", question=question, shape=shape, subject=subject, scope=scope)
     return Interpretation(
-        selection=selection_for(domain, shape, subject), shape=shape, subject=subject
+        selection=selection_for(domain, shape, subject, scope_filters),
+        shape=shape,
+        subject=subject,
+        scope=scope or None,
     )
+
+
+def resolve_scope(
+    domain: Domain,
+    dimension: str,
+    raw_value: str,
+    api_key: str | None,
+    *,
+    cube_url: str = "",
+    values: Any = None,
+) -> str:
+    """One record-level slice, resolved against what the dimension actually holds.
+
+    Split out so it can be exercised without the model call above it, and so the two-tier ladder
+    in `agent.resolve` is reached from exactly one place rather than reimplemented per caller.
+    """
+    from semantic_explorer_base.agent.dimension_values import dimension_values
+
+    candidates = values(dimension) if values else dimension_values(dimension, cube_url=cube_url)
+    return resolve_against(
+        raw_value,
+        candidates,
+        pick=lambda raw, options: pick_value(raw, options, api_key) if api_key else None,
+    ).resolved

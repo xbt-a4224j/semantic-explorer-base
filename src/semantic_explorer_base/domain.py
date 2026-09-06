@@ -100,6 +100,16 @@ class Domain:
     #: is undefined outside a join.
     selectable: tuple[str, ...] = ()
 
+    #: Record-level dimensions a question may be scoped BY, as opposed to asked about. The
+    #: subject axis says which term a question is about; these say which slice of the corpus.
+    #:
+    #: Without them the four shapes can express "the consideration split" but not "the
+    #: consideration split for healthcare deals", and the word `healthcare` was silently
+    #: dropped — the corpus-wide answer returned as though it were the scoped one. Values are
+    #: free text and resolved through `agent.resolve`, never trusted verbatim, because a
+    #: dimension holds `Health Care Industry` where a person says `healthcare`.
+    scope_dimensions: tuple[str, ...] = ()
+
     #: Measures present in the model that the agent must never pick. There is usually one: a
     #: mean kept beside a median so a reader can see they diverge, which the agent selecting it
     #: would turn into exactly the wrong number. Naming it here beats trimming it from the model,
@@ -198,6 +208,16 @@ class Domain:
                 "12,937 on the reference corpus — so reporting it against count_measure "
                 "overstates the sample by 16x"
             )
+        for name in self.scope_dimensions:
+            if "." not in name:
+                raise InvalidDomain(
+                    f"scope_dimensions entry {name!r} must be a fully qualified Cube member"
+                )
+        if self.subject_axis in self.scope_dimensions:
+            raise InvalidDomain(
+                "subject_axis must not be a scope dimension — it is what a question is ABOUT, "
+                "and offering it as a slice lets one question pin it twice to different values"
+            )
         for name in self.count_measures:
             if "." not in name:
                 raise InvalidDomain(
@@ -233,7 +253,13 @@ def load(root: pathlib.Path | str = ".") -> Domain:
             f"{MANIFEST} has keys this platform does not understand: {sorted(unknown)}. "
             f"Known keys: {sorted(known)}"
         )
-    for key in ("numeric_measures", "selectable", "excluded_measures", "count_measures"):
+    for key in (
+        "numeric_measures",
+        "selectable",
+        "excluded_measures",
+        "count_measures",
+        "scope_dimensions",
+    ):
         if isinstance(raw.get(key), list):
             raw[key] = tuple(raw[key])
     try:

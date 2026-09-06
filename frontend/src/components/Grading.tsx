@@ -72,20 +72,17 @@ export function Grading({
 
   return (
     <section className="sem__pane" data-testid="grading">
-      <h3 className="sem__h">The grade — computed with no database and no model</h3>
-      <p className="sem__sub">{data.note}</p>
+      <h3 className="sem__h">The grade</h3>
       <p className="sem__sub">
-        <strong>Read the failures before the score.</strong> Exact-set matching is harsher than
-        it looks
+        {data.note} Exact-set match, so an alias counts as wrong
         {aliasExample && (
           <>
-            : <code>q01</code> is marked wrong for choosing <code>{aliasExample.chosen}</code>{' '}
-            where the case expected <code>{aliasExample.expected}</code> — and the Cube model
-            documents those two as the same measure under different names
+            {' '}
+            (<code>{aliasExample.chosen}</code> vs <code>{aliasExample.expected}</code>, the same
+            measure under two names)
           </>
         )}
-        . A grader that cannot see an alias will punish a correct answer, which is itself a
-        finding about the vocabulary rather than about the model.
+        .
       </p>
 
       {/*
@@ -141,24 +138,20 @@ export function Grading({
           <span className="grade__num" data-testid="grade-answerable">
             {data.answerable_correct} of {data.answerable_total}
           </span>
-          <span className="grade__lbl">answerable questions, exact selection match</span>
+          <span className="grade__lbl">answerable, exact match</span>
         </div>
         <div className={`grade__tile${refusalBad ? ' is-bad' : ''}`}>
           <span className="grade__num" data-testid="grade-refusal">
             {data.refusal_correct} of {data.refusal_total}
           </span>
-          <span className="grade__lbl">
-            questions it should have declined — and mostly did not
-          </span>
+          <span className="grade__lbl">should have declined</span>
         </div>
       </div>
 
       {refusalBad && (
         <p className="qb__blocked" data-testid="grade-finding">
-          <strong>This is the finding.</strong> The model is bad at knowing when
-          to refuse. That is precisely why <code>min_n</code> is enforced in the API rather than
-          asked for in a prompt — refusal cannot be the model&rsquo;s job when this is how well
-          it does it.
+          The model is bad at knowing when to refuse, which is why <code>min_n</code> is enforced
+          in the API rather than asked for in a prompt.
         </p>
       )}
 

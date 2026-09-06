@@ -16,7 +16,13 @@ from __future__ import annotations
 
 import pytest
 
-from semantic_explorer_base.agent.interpret import interpret, interpretation_schema
+import dataclasses
+
+from semantic_explorer_base.agent.interpret import (
+    interpret,
+    interpretation_schema,
+    resolve_scope,
+)
 from semantic_explorer_base.domain import Domain, InvalidDomain
 
 LEGAL = Domain(
@@ -37,7 +43,7 @@ SUBJECTS = [
 ]
 
 
-def _run(question, shape, subject, covers=None, domain=LEGAL):
+def _run(question, shape, subject, covers=None, domain=LEGAL, scope=()):
     """One injected chooser: the winning strategy makes both choices in a single call, so the
     test seam is one function rather than two.
 
@@ -45,7 +51,7 @@ def _run(question, shape, subject, covers=None, domain=LEGAL):
     as not covering the question. Pass it explicitly to exercise the decline paths.
     """
     covers = subject is not None if covers is None else covers
-    return interpret(question, domain, choose=lambda q: (shape, subject, covers)).selection
+    return interpret(question, domain, choose=lambda q: (shape, subject, covers, scope)).selection
 
 
 class TestALawyersQuestionBecomesASelection:
@@ -145,7 +151,7 @@ class TestDecliningIsAnAnswer:
             interpret(
                 "how many agreements do we have",
                 LEGAL,
-                choose=lambda q: ("count", None, True),
+                choose=lambda q: ("count", None, True, ()),
             ).selection
             is not None
         )
@@ -190,7 +196,7 @@ class TestAQuestionTheCorpusCannotAnswerNeverReturnsANumber:
         result = interpret(
             "what's the average deal size in dollars",
             LEGAL,
-            choose=lambda q: ("count", None, False),
+            choose=lambda q: ("count", None, False, ()),
         )
         assert result.cannot_answer
         assert result.selection is None
@@ -200,7 +206,7 @@ class TestAQuestionTheCorpusCannotAnswerNeverReturnsANumber:
         result = interpret(
             "how many agreements are loaded",
             LEGAL,
-            choose=lambda q: ("count", None, True),
+            choose=lambda q: ("count", None, True, ()),
         )
         assert result.selection is not None
         assert result.selection["measures"] == ["comparable_deals.n"]
@@ -208,3 +214,64 @@ class TestAQuestionTheCorpusCannotAnswerNeverReturnsANumber:
     def test_a_shape_with_no_subject_and_no_coverage_declines(self) -> None:
         for shape in ("distribution", "median", "coverage"):
             assert _run("unanswerable", shape, None) is None, shape
+
+
+class TestAQuestionCanNameASliceAsWellAsASubject:
+    """The gap that let "what are the cash-only deals in healthcare?" answer corpus-wide.
+
+    The subject resolved correctly every time; there was simply nowhere for `healthcare` to go,
+    so it was dropped and the 152-agreement split came back looking like the answer to a
+    question about 26 of them.
+    """
+
+    SCOPED = dataclasses.replace(LEGAL, scope_dimensions=("comparable_deals.label",))
+
+    def _interpret(self, shape, subject, scope, *, values=("Health Care Industry", "Information Industry")):
+        return interpret(
+            "q",
+            self.SCOPED,
+            api_key="k",
+            choose=lambda q: (shape, subject, True, scope),
+            # No key: only the exact tier runs, so this test never reaches the network.
+            # The model-pick tier has its own tests in test_resolve.
+            resolve=lambda dim, raw: resolve_scope(
+                self.SCOPED, dim, raw, None, values=lambda _d: list(values)
+            ),
+        )
+
+    def test_a_named_slice_reaches_the_selection(self) -> None:
+        out = self._interpret("distribution", "Type of Consideration-Answer",
+                              [("comparable_deals.label", "Health Care Industry")])
+        members = [f["member"] for f in out.selection["filters"]]
+        assert "comparable_deals.label" in members
+        assert out.scope == (("comparable_deals.label", "Health Care Industry"),)
+
+    def test_a_count_with_a_slice_is_no_longer_the_corpus_total(self) -> None:
+        """`count` is where a dropped slice was most dangerous: it returned a real number."""
+        out = self._interpret("count", None, [("comparable_deals.label", "Health Care Industry")])
+        assert out.selection["filters"], "a count naming a slice must not return the corpus total"
+
+    def test_two_slices_both_survive(self) -> None:
+        """"how many healthcare deals signed in 2021" named two and kept one, silently."""
+        both = dataclasses.replace(
+            LEGAL, scope_dimensions=("comparable_deals.label", "comparable_deals.signing_year")
+        )
+        out = interpret(
+            "q",
+            both,
+            api_key="k",
+            choose=lambda q: ("count", None, True, [
+                ("comparable_deals.label", "Health Care Industry"),
+                ("comparable_deals.signing_year", "2021"),
+            ]),
+            resolve=lambda dim, raw: raw,
+        )
+        members = [f["member"] for f in out.selection["filters"]]
+        assert members == ["comparable_deals.label", "comparable_deals.signing_year"]
+
+    def test_a_slice_the_corpus_does_not_carry_declines(self) -> None:
+        """Loudly. Answering corpus-wide here is the silent wrong answer, not a graceful one."""
+        out = self._interpret("distribution", "Type of Consideration-Answer",
+                              [("comparable_deals.label", "Cryptocurrency")], values=("Health Care Industry",))
+        assert not out
+        assert out.unresolved_scope and "Cryptocurrency" in out.unresolved_scope

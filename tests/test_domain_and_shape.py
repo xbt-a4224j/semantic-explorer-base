@@ -70,6 +70,15 @@ class TestOneModuleServesBoth:
         assert s["measures"] == [domain.record_count]
         assert s["filters"] == []
 
+    def test_a_count_with_a_subject_scopes_to_it(self, domain) -> None:
+        """The live failure of 2026-09-05: "how many deals were cash-only buyouts" resolved the
+        subject correctly, `count` discarded it, and the app answered with the corpus total —
+        152 where the answer was 89. A count and a resolved subject contradict each other and
+        the subject wins."""
+        s = selection_for(domain, "count", "anything")
+        assert s == selection_for(domain, "distribution", "anything")
+        assert s["filters"], "a resolved subject must reach the selection"
+
     def test_every_shape_builds(self, domain) -> None:
         for shape in SHAPES:
             assert selection_for(domain, shape, "anything")["measures"]

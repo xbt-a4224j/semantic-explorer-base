@@ -51,8 +51,17 @@ def _pin(domain: Domain, subject: str) -> list[dict[str, Any]]:
     return [{"member": domain.subject_axis, "operator": "equals", "values": [subject]}]
 
 
-def selection_for(domain: Domain, shape: str, subject: str | None) -> dict[str, Any]:
+def selection_for(
+    domain: Domain,
+    shape: str,
+    subject: str | None,
+    scope: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """The Cube selection this shape means for this domain.
+
+    `scope` is record-level filters — which slice of the corpus, as opposed to which subject.
+    They are appended to every shape, including `count`, which is the one place a filter can
+    change a corpus total into an answer to the question actually asked.
 
     Raises `KeyError` for an unknown shape and `UnscopedShape` when a shape that needs the
     subject axis is given none. Both are the same failure in different clothes: the answer
@@ -61,6 +70,8 @@ def selection_for(domain: Domain, shape: str, subject: str | None) -> dict[str, 
     """
     if shape not in SHAPES:
         raise KeyError(f"{shape!r} is not one of {SHAPES}")
+
+    extra = list(scope or [])
 
     if shape in ("distribution", "median") and not subject:
         # Named in the domain's own word. A refusal reading "needs a deal point" is one a
@@ -81,7 +92,7 @@ def selection_for(domain: Domain, shape: str, subject: str | None) -> dict[str, 
         return {
             "measures": [domain.count_measure],
             "dimensions": [domain.answer_dimension],
-            "filters": _pin(domain, subject),
+            "filters": [*_pin(domain, subject), *extra],
         }
 
     if shape == "median":
@@ -93,7 +104,7 @@ def selection_for(domain: Domain, shape: str, subject: str | None) -> dict[str, 
         return {
             "measures": [*domain.numeric_measures[:1], domain.percentile_denominator],
             "dimensions": [],
-            "filters": _pin(domain, subject),
+            "filters": [*_pin(domain, subject), *extra],
         }
 
     if shape == "coverage":
@@ -102,8 +113,19 @@ def selection_for(domain: Domain, shape: str, subject: str | None) -> dict[str, 
         return {
             "measures": [domain.count_measure],
             "dimensions": [],
-            "filters": _pin(domain, subject) if subject else [],
+            "filters": [*(_pin(domain, subject) if subject else []), *extra],
         }
 
-    # count: how many records, with no subject named.
-    return {"measures": [domain.record_count], "dimensions": [], "filters": []}
+    # count. Two readings, and which one applies is decided by whether a subject resolved.
+    #
+    # With no subject the question is about the corpus: "how many deals do we have" -> 152.
+    #
+    # With one, `count` and the subject contradict each other, and the subject wins. "how many
+    # deals were cash-only buyouts" resolves Type of Consideration and then asks for a number
+    # scoped to one of its answers; the corpus total answers a question nobody asked, which is
+    # this file's whole stated failure mode. Falling through to `distribution` returns the split
+    # WITH its denominator (89 / 39 / 21) rather than a bare 89 — strictly more than was asked,
+    # and the denominator is the point of the product.
+    if subject:
+        return selection_for(domain, "distribution", subject, scope)
+    return {"measures": [domain.record_count], "dimensions": [], "filters": extra}
