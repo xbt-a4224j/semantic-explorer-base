@@ -14,8 +14,8 @@ from typing import Any
 
 import httpx
 
-from explorer.api.logging import get_logger
-from explorer.api.settings import settings
+from quorum.logging import get_logger
+
 
 log = get_logger()
 
@@ -33,9 +33,9 @@ CONTINUE_WAIT = "Continue wait"
 MAX_WAITS = 10
 
 
-def query(payload: dict[str, Any], timeout: float = 20.0) -> list[dict[str, Any]]:
+def query(payload: dict[str, Any], cube_url: str, timeout: float = 20.0) -> list[dict[str, Any]]:
     started = time.perf_counter()
-    url = f"{settings.cube_api_url}/load"
+    url = f"{cube_url}/load"
     params = {"query": json.dumps(payload)}
 
     body: dict[str, Any] = {}
@@ -78,7 +78,7 @@ def query(payload: dict[str, Any], timeout: float = 20.0) -> list[dict[str, Any]
     return list(rows)
 
 
-def meta(timeout: float = 20.0) -> dict[str, Any]:
+def meta(cube_url: str, timeout: float = 20.0) -> dict[str, Any]:
     """Cube's `/meta` — the vocabulary a selection may draw from.
 
     Read live rather than checked in: a copy would drift from `cube/model/*.yml` silently,
@@ -87,7 +87,7 @@ def meta(timeout: float = 20.0) -> dict[str, Any]:
     """
     started = time.perf_counter()
     try:
-        response = httpx.get(f"{settings.cube_api_url}/meta", timeout=timeout)
+        response = httpx.get(f"{cube_url}/meta", timeout=timeout)
         response.raise_for_status()
         body: dict[str, Any] = response.json()
     except Exception as exc:
