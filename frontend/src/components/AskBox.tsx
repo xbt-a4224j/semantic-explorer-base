@@ -205,13 +205,156 @@ function ChipName({
   )
 }
 
+export interface DrillResult {
+  refused: boolean
+  message?: string
+  records: {
+    record_id: string
+    target_name?: string | null
+    position?: string | null
+    clause_text?: string | null
+    is_excerpt?: boolean
+  }[]
+}
+
+/**
+ * The answer, as rows rather than a JSON dump.
+ *
+ * It rendered `JSON.stringify(rows)` — correct, auditable, and a dead end. A distribution's
+ * rows are the interesting object in the whole product: each one is a group of records that
+ * gave the same answer, and the reader's next question is always *which ones*. So a row that
+ * names an answer opens into the records behind it, with the clause language, through the same
+ * gate the aggregate went through: a slice below the threshold refuses here too.
+ *
+ * Rows without an answer dimension (a bare count) are shown as a figure and nothing more —
+ * there is no subject to drill and pretending otherwise would offer a dead button.
+ */
+function AnswerRows({
+  rows,
+  query,
+  strings,
+  onDrill,
+}: {
+  rows: Record<string, unknown>[]
+  query: { dimensions: string[]; filters: { member: string; values: string[] }[] } | null | false | undefined
+  strings: QuorumStrings
+  onDrill?: (subject: string, position: string) => Promise<DrillResult>
+}) {
+  const [open, setOpen] = useState<string | null>(null)
+  const [drilled, setDrilled] = useState<Record<string, DrillResult>>({})
+  const [busy, setBusy] = useState<string | null>(null)
+
+  // The answer axis is whichever dimension the selection grouped by; the subject is whatever
+  // the selection pinned on the subject axis. Both come from the query that was actually sent,
+  // never from the question text — the chips are the thing the reader confirmed.
+  const answerDim = query ? (query.dimensions[0] ?? null) : null
+  // The subject axis is the filter on the SAME CUBE as the answer dimension — a distribution
+  // pins `x.subject` and groups by `x.position`. Taking "the first filter that is not the
+  // answer dimension" instead picked up a record-level scope: a question about healthcare
+  // cash deals drilled on `Health Care Industry` as though it were the deal point.
+  const cube = answerDim ? answerDim.split('.')[0] : null
+  const subject =
+    (query &&
+      query.filters.find(
+        (f) => f.values?.length === 1 && f.member !== answerDim && f.member.split('.')[0] === cube,
+      )?.values[0]) ||
+    null
+  const canDrill = Boolean(onDrill && answerDim && subject)
+
+  async function drill(position: string) {
+    if (!onDrill || !subject) return
+    if (open === position) {
+      setOpen(null)
+      return
+    }
+    setOpen(position)
+    if (drilled[position]) return
+    setBusy(position)
+    try {
+      const hit = await onDrill(subject, position)
+      setDrilled((d) => ({ ...d, [position]: hit }))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  if (!rows.length) return <p className="qb__hint">No rows.</p>
+
+  return (
+    <ul className="ask__answers" data-testid="ask-rows">
+      {rows.map((row, i) => {
+        const position = answerDim ? String(row[answerDim] ?? '') : ''
+        const figures = Object.entries(row).filter(([k]) => k !== answerDim)
+        const hit = drilled[position]
+        return (
+          <li key={position || i} className="ask__answer">
+            <div className="ask__answerhead">
+              <span className="ask__answername">{position || '—'}</span>
+              <span className="ask__answerfigs">
+                {figures.map(([k, v]) => (
+                  <span key={k} className="mono">
+                    {String(v)}
+                  </span>
+                ))}
+              </span>
+              {canDrill && position && (
+                <button
+                  type="button"
+                  className="ask__drillbtn"
+                  onClick={() => drill(position)}
+                  aria-expanded={open === position}
+                  data-testid={`ask-drill-${position}`}
+                >
+                  {open === position ? 'hide' : `show the ${strings.records ?? 'records'}`}
+                </button>
+              )}
+            </div>
+            {open === position && (
+              <div className="ask__drill">
+                {busy === position && <p className="qb__hint">Loading…</p>}
+                {hit?.refused && (
+                  <p className="qb__refused" data-testid="ask-drill-refused">
+                    {hit.message ?? 'This slice is too small to open.'}
+                  </p>
+                )}
+                {hit && !hit.refused && (
+                  <ul>
+                    {hit.records.map((r) => (
+                      <li key={r.record_id} className="drill" data-testid={`ask-drill-row-${r.record_id}`}>
+                        <span className="drill__party">{r.target_name ?? r.record_id}</span>
+                        {r.clause_text && (
+                          <div className="drill__text">
+                            {r.is_excerpt && <span className="drill__tag">excerpt</span>}
+                            {r.clause_text}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 export function AskBox({
   strings,
   onAsked,
+  onDrill,
 }: {
   /** The domain's nouns. Passed, not injected — see strings.ts. */
   strings: QuorumStrings
   onAsked?: (costUsd: number) => void
+  /**
+   * Fetch the records behind one answer. Injected because the route and the record shape are
+   * the domain's, and omitting it simply leaves the rows unclickable — a platform that
+   * hard-codes a drill endpoint has stopped being domain-free.
+   */
+  onDrill?: (subject: string, position: string) => Promise<DrillResult>
 }) {
   const [question, setQuestion] = useState('')
   const [asking, setAsking] = useState(false)
@@ -740,9 +883,12 @@ export function AskBox({
                   {result.message}
                 </p>
               )}
-              <pre className="qb__json" data-testid="ask-rows">
-                {JSON.stringify(result.rows, null, 2)}
-              </pre>
+              <AnswerRows
+                rows={result.rows}
+                query={query}
+                strings={strings}
+                onDrill={onDrill}
+              />
             </div>
           )}
         </>
