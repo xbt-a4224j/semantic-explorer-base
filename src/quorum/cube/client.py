@@ -16,7 +16,6 @@ import httpx
 
 from quorum.logging import get_logger
 
-
 log = get_logger()
 
 
@@ -46,7 +45,9 @@ def query(payload: dict[str, Any], cube_url: str, timeout: float = 20.0) -> list
             body = response.json()
         except Exception as exc:  # one failure mode for the caller: CubeUnavailable
             log.warning(
-                "cube_query_failed", error=type(exc).__name__, measures=payload.get("measures")
+                "cube_query_failed",
+                error=type(exc).__name__,
+                measures=payload.get("measures"),
             )
             raise CubeUnavailable(
                 "The semantic layer (Cube) did not answer. Facet counts and deal-term rollups "

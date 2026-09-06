@@ -90,7 +90,10 @@ class Vocabulary:
                             "type": "string",
                             "enum": list(self.measures + self.dimensions),
                         },
-                        "operator": {"type": "string", "enum": ["equals", "contains", "gt", "lt"]},
+                        "operator": {
+                            "type": "string",
+                            "enum": ["equals", "contains", "gt", "lt"],
+                        },
                         "values": {"type": "array", "items": {"type": "string"}},
                     },
                     "required": ["member", "operator", "values"],
@@ -103,7 +106,10 @@ class Vocabulary:
                     "type": "object",
                     "properties": {
                         "dimension": {"type": "string", "enum": list(self.dimensions)},
-                        "granularity": {"type": "string", "enum": ["day", "month", "year"]},
+                        "granularity": {
+                            "type": "string",
+                            "enum": ["day", "month", "year"],
+                        },
                     },
                     "required": ["dimension", "granularity"],
                     "additionalProperties": False,
@@ -160,6 +166,7 @@ def fetch_vocabulary(
 #:
 #: Counts are deliberately absent: `n` and `numeric_n` count rows rather than averaging
 
+
 def requires_scope(domain) -> dict[str, str]:
     """Measures that are meaningless unless the selection is pinned to one subject value.
 
@@ -176,18 +183,25 @@ def requires_scope(domain) -> dict[str, str]:
     return {m: domain.subject_axis for m in domain.numeric_measures}
 
 
-#: Said in the measure's own words rather than a second wording that can drift from it.
+#: Why an unscoped percentile is refused, in general terms. A domain can say it better in its
+#: own units — the reference corpus's version names them ("tail periods in months,
+#: matching-rights periods in business days, ownership thresholds in percent") and a refusal a
+#: user understands is a refusal they fix rather than route around. Overridden via
+#: `strings.scope_reason`.
 SCOPE_REASON = (
-    "it averages a column that holds several units at once — tail periods in months, "
-    "matching-rights periods in business days, ownership thresholds in percent — so an "
-    "unscoped percentile mixes them into a number with no unit"
+    "it aggregates a column that holds several units at once, so an unscoped percentile "
+    "mixes them into a number with no unit"
 )
+
+
+def scope_reason(domain: Any = None) -> str:
+    return (getattr(domain, "strings", {}) or {}).get("scope_reason", SCOPE_REASON)
 
 
 def _is_scoped_to_one(selection: dict[str, Any], member: str) -> bool:
     """Whether the selection pins `member` to a single value, either way that counts.
 
-    Grouping by it is as good as filtering to one: one row per deal point means each
+    Grouping by it is as good as filtering to one: one row per subject value means each
     percentile falls inside a single unit. Refusing the grouped form would be the kind of
     over-refusal that gets a gate switched off rather than fixed.
     """
@@ -201,18 +215,30 @@ def _is_scoped_to_one(selection: dict[str, Any], member: str) -> bool:
     )
 
 
-def validate_selection(selection: dict[str, Any], vocabulary: Vocabulary) -> None:
+def validate_selection(
+    selection: dict[str, Any], vocabulary: Vocabulary, domain: Any = None
+) -> None:
     """Defense in depth: the schema should make an invalid name undecidable, but this is the
-    one gate every selection passes through before it reaches Cube, schema behaved or not."""
+    one gate every selection passes through before it reaches Cube, schema behaved or not.
+
+    `domain` supplies the scope rule. It was a module constant naming three legal measures,
+    which is exactly the kind of hardcoding this extraction exists to remove — and the port
+    dropped the constant while leaving the reference to it, so this function raised NameError
+    on every selection until a test reached it. Optional so a caller with no domain still gets
+    name validation; the scope guard is simply inactive without one, which is the honest
+    behaviour rather than a silent pass.
+    """
+    scoped = requires_scope(domain) if domain is not None else {}
+    subject = getattr(domain, "strings", {}).get("subject", "subject") if domain else "subject"
     allowed = set(vocabulary.measures) | set(vocabulary.dimensions)
     for measure in selection.get("measures", []):
         if measure not in vocabulary.measures:
             raise InvalidSelection(f"{measure!r} is not a known measure.", selection)
-        required = REQUIRES_SCOPE.get(measure)
+        required = scoped.get(measure)
         if required and not _is_scoped_to_one(selection, required):
             raise InvalidSelection(
                 f"{measure!r} needs {required!r} pinned to one value, because "
-                f"{SCOPE_REASON}. Filter to a single deal point, or group by "
+                f"{scope_reason(domain)}. Filter to a single {subject}, or group by "
                 f"{required!r} so each row stays inside one unit.",
                 selection,
             )

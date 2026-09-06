@@ -83,10 +83,11 @@ def selection_for(domain: Domain, shape: str, subject: str | None) -> dict[str, 
     if shape == "median":
         # The count travels with the percentile because a median with no denominator is a
         # figure nobody can weigh, and because the scope guard would reject the percentile
-        # without the pin anyway.
+        # without the pin anyway. It is the PERCENTILE's denominator, not the subject's: most
+        # answers are categorical, so the two differ by 16x on the reference corpus.
         assert subject
         return {
-            "measures": [*domain.numeric_measures[:1], domain.count_measure],
+            "measures": [*domain.numeric_measures[:1], domain.percentile_denominator],
             "dimensions": [],
             "filters": _pin(domain, subject),
         }

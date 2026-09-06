@@ -9,6 +9,7 @@ needs a branch, it is not.
 from __future__ import annotations
 
 import pytest
+
 from quorum.agent.shape import SHAPES, UnscopedShape, selection_for
 from quorum.domain import Domain, InvalidDomain
 
@@ -75,22 +76,34 @@ class TestTheManifestFailsLoudlyAtLoad:
     def test_a_bare_member_name_is_rejected(self) -> None:
         with pytest.raises(InvalidDomain, match="fully qualified"):
             Domain(
-                name="x", corpus="x", subject_axis="deal_point_name",
-                answer_dimension="a.b", count_measure="a.n", record_count="b.n",
+                name="x",
+                corpus="x",
+                subject_axis="deal_point_name",
+                answer_dimension="a.b",
+                count_measure="a.n",
+                record_count="b.n",
             ).validate()
 
     def test_the_two_counts_must_differ(self) -> None:
         with pytest.raises(InvalidDomain, match="threshold of five"):
             Domain(
-                name="x", corpus="x", subject_axis="a.subject",
-                answer_dimension="a.answer", count_measure="a.n", record_count="a.n",
+                name="x",
+                corpus="x",
+                subject_axis="a.subject",
+                answer_dimension="a.answer",
+                count_measure="a.n",
+                record_count="a.n",
             ).validate()
 
     def test_grouping_a_dimension_by_itself_is_rejected(self) -> None:
         with pytest.raises(InvalidDomain, match="by itself"):
             Domain(
-                name="x", corpus="x", subject_axis="a.b",
-                answer_dimension="a.b", count_measure="a.n", record_count="b.n",
+                name="x",
+                corpus="x",
+                subject_axis="a.b",
+                answer_dimension="a.b",
+                count_measure="a.n",
+                record_count="b.n",
             ).validate()
 
     def test_an_unknown_key_is_not_ignored(self, tmp_path) -> None:

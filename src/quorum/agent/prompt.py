@@ -49,7 +49,6 @@ def build(domain: Domain) -> str:
     """
     s = domain.strings
     records = s.get("records", "records")
-    record = s.get("record", "record")
     subject = s.get("subject", "subject")
     corpus = s.get("corpus_description", records)
     terms = s.get("terms_of_art") or ()
@@ -65,9 +64,7 @@ def build(domain: Domain) -> str:
         # ("no deal values in dollars, no fee amounts, and no adviser names"). A template that
         # prefixes one "no" and joins reads differently, and a prompt that reads differently is
         # a prompt whose score is unknown.
-        f" — it records negotiated terms only, and holds {_oxford(absent)}."
-        if absent
-        else "."
+        f" — it records negotiated terms only, and holds {_oxford(absent)}." if absent else "."
     )
 
     return (

@@ -24,10 +24,24 @@ SRC = pathlib.Path(__file__).resolve().parents[1] / "src" / "quorum"
 #: words", it is that the platform knows about NO corpus in particular.
 DOMAIN_WORDS = (
     # legal
-    "deal_point", "dealpoint", "maud", "edgar", "sic_", "folio", "fiduciary", "no-shop",
-    "merger", "acquirer", "covenant",
+    "deal_point",
+    "dealpoint",
+    "maud",
+    "edgar",
+    "sic_",
+    "folio",
+    "fiduciary",
+    "no-shop",
+    "merger",
+    "acquirer",
+    "covenant",
     # medical
-    "snomed", "synthea", "patient", "icd", "comorbid", "claimant",
+    "snomed",
+    "synthea",
+    "patient",
+    "icd",
+    "comorbid",
+    "claimant",
 )
 
 #: `matter`, `claim`, `industry` and `contract` are excluded on purpose. They are ordinary
@@ -52,9 +66,13 @@ def code_only(source: str) -> str:
     for node in ast.walk(tree):
         if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
             body = node.body
-            if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
-                if isinstance(body[0].value.value, str):
-                    body.pop(0)
+            if (
+                body
+                and isinstance(body[0], ast.Expr)
+                and isinstance(body[0].value, ast.Constant)
+                and isinstance(body[0].value.value, str)
+            ):
+                body.pop(0)
     return ast.unparse(tree)
 
 
@@ -83,5 +101,7 @@ def test_no_domain_vocabulary(path: pathlib.Path) -> None:
 def test_no_imports_from_a_domain_package(path: pathlib.Path) -> None:
     """The platform must not reach into an application. If it needs something from one, that
     something is a field on `Domain`."""
-    bad = re.findall(r"^\s*(?:from|import)\s+(explorer|clause|claims)\b", path.read_text(), re.M)
+    bad = re.findall(
+        r"^\s*(?:from|import)\s+(explorer|clause|claims)\b", path.read_text(), re.MULTILINE
+    )
     assert not bad, f"{path.relative_to(SRC)} imports from a domain package: {set(bad)}"

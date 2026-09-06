@@ -18,6 +18,10 @@ record_count: premises.n
 numeric_measures:
   - violations.median_days_to_reinspection
 
+# Not every violation gets reinspected, so the median's sample is smaller than the violation
+# count. Same shape as the reference corpus, where only 809 of 12,937 answers carry a number.
+numeric_count: violations.reinspected_n
+
 selectable:
   - premises
   - violations

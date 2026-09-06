@@ -21,6 +21,7 @@ from __future__ import annotations
 import pathlib
 
 import pytest
+
 from quorum.agent.shape import SHAPES, selection_for
 from quorum.domain import load
 from quorum.gates.min_n import apply

@@ -17,8 +17,10 @@ implementation shipped when it scored 20 of 27 on `docs/eval/ask_questions.json`
 from __future__ import annotations
 
 import pathlib
+from typing import ClassVar
 
 import pytest
+
 from quorum.agent.prompt import build
 from quorum.domain import Domain
 
@@ -36,22 +38,28 @@ LEGAL_STRINGS = {
     # deals"), while the shape definitions describe what is counted ("how many agreements").
     "colloquial": "deals",
     "corpus_description": "public-target merger agreements",
-    "terms_of_art": ["no-shop", "fiduciary out", "MAE carve-out", "bringdown", "tail period"],
+    "terms_of_art": [
+        "no-shop",
+        "fiduciary out",
+        "MAE carve-out",
+        "bringdown",
+        "tail period",
+    ],
     # Full phrases, because the benchmarked text repeats "no" before each.
     "absent": ["no deal values in dollars", "no fee amounts", "no adviser names"],
 }
 
 
 def _domain(**overrides) -> Domain:
-    base = dict(
-        name="clause-explorer",
-        corpus="maud-public-target-merger-agreements",
-        subject_axis="deal_points.deal_point_name",
-        answer_dimension="deal_points.position",
-        count_measure="deal_points.n",
-        record_count="comparable_deals.n",
-        strings=LEGAL_STRINGS,
-    )
+    base = {
+        "name": "clause-explorer",
+        "corpus": "maud-public-target-merger-agreements",
+        "subject_axis": "deal_points.deal_point_name",
+        "answer_dimension": "deal_points.position",
+        "count_measure": "deal_points.n",
+        "record_count": "comparable_deals.n",
+        "strings": LEGAL_STRINGS,
+    }
     base.update(overrides)
     return Domain(**base)
 
@@ -66,7 +74,7 @@ class TestOnlyNounsChangeBetweenDomains:
     shape definition or a null rule, each domain would be running a different algorithm and the
     platform's measured behaviour would mean nothing."""
 
-    ALIEN = {
+    ALIEN: ClassVar[dict] = {
         "records": "premises",
         "record": "premises",
         "subject": "violation",

@@ -1,0 +1,7 @@
+# Matched to clause-explorer's, so a file moving between the two repos is not reformatted on
+# arrival. A diff that is entirely whitespace hides the change that matters.
+#
+# `build/` is the wheel staging directory `python -m build` writes; linting a copy of src/
+# reports every finding twice.
+extend-exclude = ["*.md", "build"]
+line-length = 100

@@ -77,6 +77,13 @@ class Domain:
     #: median evaluates to `4`, which is not a wrong quantity so much as not a quantity.
     numeric_measures: tuple[str, ...] = ()
 
+    #: The denominator for those percentiles, and a DIFFERENT number from `count_measure`.
+    #: Most subjects are categorical, so only a minority of answers carry a parseable number —
+    #: 809 of 12,937 on the reference corpus. Reporting a median beside the subject's full count
+    #: overstates the sample it came from by 16x. Defaults to `count_measure` for a domain with
+    #: no numeric measures, where the distinction cannot arise.
+    numeric_count: str = ""
+
     #: The cubes and views the agent may select from. Everything else in `/meta` is invisible
     #: to it — a physical cube the model layer exposes only to be joined through is not a thing
     #: anyone should be able to ask about, and offering it means offering members whose meaning
@@ -96,6 +103,11 @@ class Domain:
     strings: dict[str, Any] = field(default_factory=dict)
 
     @property
+    def percentile_denominator(self) -> str:
+        """What a median is out of. Never the subject's own count when the two differ."""
+        return self.numeric_count or self.count_measure
+
+    @property
     def requires_subject(self) -> frozenset[str]:
         """Measures that are meaningless without the subject axis pinned to one value."""
         return frozenset(self.numeric_measures)
@@ -107,10 +119,21 @@ class Domain:
         symptom — every question declining — looks like a model problem rather than a
         configuration one. Cheap to check, expensive to debug.
         """
-        for name in ("name", "corpus", "subject_axis", "answer_dimension", "count_measure"):
+        for name in (
+            "name",
+            "corpus",
+            "subject_axis",
+            "answer_dimension",
+            "count_measure",
+        ):
             if not getattr(self, name):
                 raise InvalidDomain(f"quorum.yaml is missing a value for {name!r}")
-        for name in ("subject_axis", "answer_dimension", "count_measure", "record_count"):
+        for name in (
+            "subject_axis",
+            "answer_dimension",
+            "count_measure",
+            "record_count",
+        ):
             value = getattr(self, name)
             if value and "." not in value:
                 raise InvalidDomain(
@@ -122,6 +145,13 @@ class Domain:
                 "subject_axis and answer_dimension must differ: grouping a dimension by itself "
                 "returns one row per value with a count of one, which reads as a distribution "
                 "and is not one"
+            )
+        if self.numeric_measures and not self.numeric_count:
+            raise InvalidDomain(
+                "numeric_measures without numeric_count: a percentile needs its own denominator. "
+                "Only answers carrying a parseable number are in a median's sample — 809 of "
+                "12,937 on the reference corpus — so reporting it against count_measure "
+                "overstates the sample by 16x"
             )
         if self.count_measure == self.record_count:
             raise InvalidDomain(
