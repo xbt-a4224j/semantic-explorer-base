@@ -105,6 +105,16 @@ class Domain:
     #: because the dashboard still wants it.
     excluded_measures: tuple[str, ...] = ()
 
+    #: Above this a recorded span is document-scale rather than clause-scale and is rendered as
+    #: a bounded excerpt. A fact about the corpus's documents, which is why it is here and not
+    #: in the deployment's settings: the reference corpus's spans have a median of 4,658
+    #: characters and a 90th percentile of 238,949, and rendering the raw slice as "the clause"
+    #: showed a table of contents. 0 disables the excerpting.
+    max_clause_chars: int = 0
+
+    #: How much of a document-scale span is shown when it exceeds `max_clause_chars`.
+    excerpt_chars: int = 1200
+
     #: Where the Cube model lives, relative to the domain repo root.
     cube_model: str = "cube/model"
 
