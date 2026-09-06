@@ -22,11 +22,11 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from quorum.agent.pick_value import PICK_MODEL
-from quorum.agent.prompt import build
-from quorum.agent.shape import SHAPES, selection_for
-from quorum.domain import Domain
-from quorum.logging import get_logger
+from semantic_explorer_base.agent.pick_value import PICK_MODEL
+from semantic_explorer_base.agent.prompt import build
+from semantic_explorer_base.agent.shape import SHAPES, selection_for
+from semantic_explorer_base.domain import Domain
+from semantic_explorer_base.logging import get_logger
 
 log = get_logger()
 
@@ -175,7 +175,7 @@ def subject_glosses(
     facet rail. It is not free in tokens — it roughly triples the prompt, from ~1,400 to ~4,300
     — which is $0.0007 a question rather than $0.0002.
     """
-    from quorum.cube.client import query as cube_query
+    from semantic_explorer_base.cube.client import query as cube_query
 
     payload = {
         "dimensions": [domain.subject_axis, domain.answer_dimension],

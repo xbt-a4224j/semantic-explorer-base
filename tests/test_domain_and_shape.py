@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from quorum.agent.shape import SHAPES, UnscopedShape, selection_for
-from quorum.domain import Domain, InvalidDomain
+from semantic_explorer_base.agent.shape import SHAPES, UnscopedShape, selection_for
+from semantic_explorer_base.domain import Domain, InvalidDomain
 
 LEGAL = Domain(
     name="clause-explorer",
@@ -130,7 +130,7 @@ class TestTheManifestFailsLoudlyAtLoad:
 
     def test_an_unknown_key_is_not_ignored(self, tmp_path) -> None:
         """A typo'd `subject_axis:` silently ignored leaves the app answering nothing."""
-        from quorum.domain import load
+        from semantic_explorer_base.domain import load
 
         (tmp_path / "quorum.yaml").write_text(
             "name: x\ncorpus: x\nsubject_axes: a.b\nanswer_dimension: a.c\n"

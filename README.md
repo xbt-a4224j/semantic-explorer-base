@@ -1,4 +1,4 @@
-# semantic-quorum
+# semantic-explorer-base
 
 A governed-answer layer for analytical questions over a domain corpus.
 
@@ -16,7 +16,7 @@ One command, about a second:
 make platform-sync      # in the domain repo
 ```
 
-It builds a wheel from your local `semantic-quorum` checkout, installs it into the domain's venv,
+It builds a wheel from your local `semantic-explorer-base` checkout, installs it into the domain's venv,
 and writes `platform.lock`. The wheel lands in `vendor/` (gitignored, rebuilt on demand); the lock
 is committed.
 
@@ -25,7 +25,7 @@ submodule lets you edit in place only in the domain you are standing in, and pro
 platform change to the *second* domain needs commit, push and pull over the network. This needs
 none of that — edit the platform, uncommitted even, run one command in either domain.
 
-**Why not `pip install -e ../semantic-quorum`.** The domain repos build with `context: .`, so a
+**Why not `pip install -e ../semantic-explorer-base`.** The domain repos build with `context: .`, so a
 sibling directory is outside the Docker build context and cannot be `COPY`d. It works on a
 laptop and breaks every container build. A wheel written into `vendor/` is inside the context.
 

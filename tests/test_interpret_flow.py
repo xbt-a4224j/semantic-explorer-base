@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import pytest
 
-from quorum.agent.interpret import interpret, interpretation_schema
-from quorum.domain import Domain, InvalidDomain
+from semantic_explorer_base.agent.interpret import interpret, interpretation_schema
+from semantic_explorer_base.domain import Domain, InvalidDomain
 
 LEGAL = Domain(
     name="clause-explorer",

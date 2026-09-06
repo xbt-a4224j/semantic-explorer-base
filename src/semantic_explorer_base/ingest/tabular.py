@@ -43,7 +43,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
-from quorum.logging import get_logger
+from semantic_explorer_base.logging import get_logger
 
 log = get_logger()
 

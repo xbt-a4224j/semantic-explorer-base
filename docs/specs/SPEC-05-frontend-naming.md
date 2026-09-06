@@ -3,7 +3,7 @@
 Produces: this domain's `strings.ts`, `glossary.ts`, tab copy, and the corpus-specific prose
 slots (`corpusStrip`, `recordRenderers`, `Rollup`'s diagram/scope text, `Trust`'s chart copy).
 Depends on: [SPEC-01](SPEC-01-corpus-intake.md) for the base nouns; the shared components these
-words plug into already exist in the platform (`@quorum/ui`) — this spec does not write them.
+words plug into already exist in the platform (`@semantic-explorer-base/ui`) — this spec does not write them.
 
 ## Two different noun sets, and why they don't merge
 
@@ -139,7 +139,7 @@ strings:
 - [ ] `exampleQuestion` is a real question this corpus answers well, phrased with this domain's
       own terms of art — not a generic placeholder with the nouns swapped in.
 - [ ] The platform's frontend boundary test still finds zero domain vocabulary in
-      `semantic-quorum` after this domain exists — this is the check that actually verifies the
+      `semantic-explorer-base` after this domain exists — this is the check that actually verifies the
       whole chain, not just this spec.
 
 ## Known gaps

@@ -13,4 +13,4 @@ import structlog
 
 
 def get_logger() -> Any:
-    return structlog.get_logger("quorum")
+    return structlog.get_logger("semantic_explorer_base")

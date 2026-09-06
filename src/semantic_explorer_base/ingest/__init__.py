@@ -7,7 +7,7 @@ whose data is a CSV of records and a CSV of facts should not have to write any c
 before this it did.
 """
 
-from quorum.ingest.tabular import (
+from semantic_explorer_base.ingest.tabular import (
     READERS,
     IngestReport,
     UnknownFormat,

@@ -15,7 +15,7 @@ import pathlib
 
 import pytest
 
-from quorum.ingest import UnknownFormat, read_rows
+from semantic_explorer_base.ingest import UnknownFormat, read_rows
 
 ROWS = [
     {"code": "A-1", "answer": "Yes", "days": "30"},

@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS ingest_runs (
 );
 CREATE INDEX IF NOT EXISTS idx_ingest_source ON ingest_runs (source, started_at DESC);
 
--- The corpus stamp. See quorum/db/corpus.py for what it prevents.
+-- The corpus stamp. See semantic_explorer_base/db/corpus.py for what it prevents.
 CREATE TABLE IF NOT EXISTS corpus_claim (
     name            TEXT PRIMARY KEY,
     first_ingest_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 
-from quorum.logging import get_logger
+from semantic_explorer_base.logging import get_logger
 
 log = get_logger()
 

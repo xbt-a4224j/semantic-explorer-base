@@ -30,7 +30,7 @@ before the change is believed.
 
 from __future__ import annotations
 
-from quorum.domain import Domain
+from semantic_explorer_base.domain import Domain
 
 
 def _oxford(items: tuple[str, ...] | list[str]) -> str:

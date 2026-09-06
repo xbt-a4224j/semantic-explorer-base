@@ -22,9 +22,9 @@ import pathlib
 
 import pytest
 
-from quorum.agent.shape import SHAPES, selection_for
-from quorum.domain import load
-from quorum.gates.min_n import apply
+from semantic_explorer_base.agent.shape import SHAPES, selection_for
+from semantic_explorer_base.domain import load
+from semantic_explorer_base.gates.min_n import apply
 
 FIXTURES = pathlib.Path(__file__).parent / "fixtures"
 ALIEN = load(FIXTURES / "restaurant-inspections")

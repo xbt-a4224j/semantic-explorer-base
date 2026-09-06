@@ -95,7 +95,7 @@ published a wrong headline number) this correction is naming from experience, no
 ## What "done" means for the whole chain
 
 Not "the app boots." **`quorum check` passes, `quorum ask` answers a real question correctly,
-and the platform's own boundary test still finds zero domain vocabulary in `semantic-quorum`
+and the platform's own boundary test still finds zero domain vocabulary in `semantic-explorer-base`
 after the domain is built.** The third condition is the one existing specs cannot verify for
 you — it is checked by running the platform's test suite, not by re-reading a manifest.
 

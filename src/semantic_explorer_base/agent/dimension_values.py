@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from quorum.cube.client import meta as cube_meta
-from quorum.cube.client import query as cube_query
+from semantic_explorer_base.cube.client import meta as cube_meta
+from semantic_explorer_base.cube.client import query as cube_query
 
 #: Above this a vocabulary is not sendable as an enum and the dimension is not closed in any
 #: useful sense. Nothing in this corpus approaches it — the largest is 92 deal points — and the

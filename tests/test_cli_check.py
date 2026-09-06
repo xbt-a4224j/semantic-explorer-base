@@ -16,7 +16,7 @@ import pathlib
 
 import pytest
 
-from quorum.cli import EXIT_CHECK_FAILED, EXIT_OK, check
+from semantic_explorer_base.cli import EXIT_CHECK_FAILED, EXIT_OK, check
 
 MANIFEST = """
 name: Parking Citations
@@ -58,7 +58,7 @@ def domain_root(tmp_path: pathlib.Path) -> pathlib.Path:
 
 def _with_meta(monkeypatch, meta) -> None:
     """Stub `/meta`. The command's logic is the cross-check, not the HTTP."""
-    from quorum.cube import client
+    from semantic_explorer_base.cube import client
 
     monkeypatch.setattr(client, "meta", lambda url, timeout=20.0: meta)
 
@@ -117,7 +117,7 @@ def test_an_unreachable_cube_is_reported_as_such_not_as_a_broken_manifest(
 ) -> None:
     """A dead semantic layer and a wrong manifest must not produce the same message. One is
     `docker compose up`; the other is an afternoon."""
-    from quorum.cube import client
+    from semantic_explorer_base.cube import client
 
     def boom(url, timeout=20.0):
         raise client.CubeUnavailable("connection refused")
@@ -134,7 +134,7 @@ def test_an_invalid_manifest_fails_before_cube_is_contacted(tmp_path, monkeypatc
     so, and `quorum check` on a laptop with nothing up must still be useful."""
     (tmp_path / "quorum.yaml").write_text("name: x\ncorpus: x\nsubject_axis: bare_name\n")
 
-    from quorum.cube import client
+    from semantic_explorer_base.cube import client
 
     monkeypatch.setattr(
         client, "meta", lambda *a, **k: pytest.fail("cube was contacted before validation")

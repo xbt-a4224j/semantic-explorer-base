@@ -15,7 +15,7 @@ import pathlib
 
 import yaml
 
-from quorum.scaffold import scaffold
+from semantic_explorer_base.scaffold import scaffold
 
 
 def test_it_writes_both_files(tmp_path: pathlib.Path) -> None:
@@ -49,7 +49,7 @@ class TestNothingIsInferred:
     ) -> None:
         """The template must fail `quorum check`, loudly, rather than silently pass as a
         configured domain nobody actually configured."""
-        from quorum.domain import InvalidDomain, load
+        from semantic_explorer_base.domain import InvalidDomain, load
 
         scaffold(tmp_path, "Parking Citations")
         try:

@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from quorum.db.corpus import ForeignCorpus, claim_corpus
+from semantic_explorer_base.db.corpus import ForeignCorpus, claim_corpus
 
 LEGAL = "maud-public-target-merger-agreements"
 HEALTH = "synthea-synthetic-claims"

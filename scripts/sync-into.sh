@@ -9,7 +9,7 @@
 #
 # Submodules were the other candidate and were rejected on experience as much as design. The
 # decisive technical point either way is the Docker build context: the domain repos build with
-# `context: .`, so a sibling directory cannot be COPYd, and `pip install -e ../semantic-quorum`
+# `context: .`, so a sibling directory cannot be COPYd, and `pip install -e ../semantic-explorer-base`
 # works on a laptop and breaks every container build. A wheel written INTO the domain repo is in
 # the context.
 #
@@ -43,7 +43,7 @@ fi
 
 VENDOR="$DOMAIN/vendor"
 mkdir -p "$VENDOR"
-rm -f "$VENDOR"/semantic_quorum-*.whl
+rm -f "$VENDOR"/semantic_explorer_base-*.whl
 
 echo "building wheel from $PLATFORM"
 cd "$PLATFORM"
@@ -65,7 +65,7 @@ rm -rf "$PLATFORM/build"
   "$PLATFORM/.venv/bin/python" -m build --wheel --outdir "$VENDOR" . >/dev/null
 }
 
-WHEEL="$(ls "$VENDOR"/semantic_quorum-*.whl | head -1)"
+WHEEL="$(ls "$VENDOR"/semantic_explorer_base-*.whl | head -1)"
 echo "  $(basename "$WHEEL")"
 
 # The record. `dirty` matters: a figure produced against an uncommitted platform cannot be
@@ -74,7 +74,7 @@ SHA="$(git -C "$PLATFORM" rev-parse HEAD)"
 DIRTY="clean"
 [ -n "$(git -C "$PLATFORM" status --porcelain)" ] && DIRTY="DIRTY — the platform tree had uncommitted changes"
 cat > "$DOMAIN/platform.lock" <<LOCK
-# Which semantic-quorum this domain is built against. Written by scripts/sync-into.sh.
+# Which semantic-explorer-base this domain is built against. Written by scripts/sync-into.sh.
 # Committed on purpose: it is the record of what a demo or a published figure was produced with.
 wheel:  $(basename "$WHEEL")
 commit: $SHA
@@ -91,15 +91,15 @@ if [ -x "$PY" ]; then
   # reported success — the build ran, the install ran, the lock said clean, and the code was
   # still wrong. Comparing the installed bytes against the source is the only check that would
   # have caught it, and it costs milliseconds.
-  SITE="$("$DOMAIN/.venv/bin/python" -c 'import quorum.domain,pathlib;print(pathlib.Path(quorum.domain.__file__).parent)')"
+  SITE="$("$DOMAIN/.venv/bin/python" -c 'import semantic_explorer_base.domain,pathlib;print(pathlib.Path(semantic_explorer_base.domain.__file__).parent)')"
   DRIFT=0
   while IFS= read -r f; do
-    rel="${f#"$PLATFORM/src/quorum/"}"
+    rel="${f#"$PLATFORM/src/semantic_explorer_base/"}"
     if ! cmp -s "$f" "$SITE/$rel"; then
       echo "  DRIFT: $rel differs from source" >&2
       DRIFT=1
     fi
-  done < <(find "$PLATFORM/src/quorum" -name '*.py')
+  done < <(find "$PLATFORM/src/semantic_explorer_base" -name '*.py')
   if [ "$DRIFT" -ne 0 ]; then
     echo "error: the installed package does not match src/. Wheel is stale — not usable." >&2
     exit 70
@@ -109,7 +109,7 @@ else
   echo "  no .venv in $DOMAIN — wheel is in vendor/, install it where you need it"
 fi
 
-# The frontend half. Copied as SOURCE into vendor/quorum-ui rather than packed as a tarball:
+# The frontend half. Copied as SOURCE into vendor/semantic-explorer-base-ui rather than packed as a tarball:
 # the domain's Vite build compiles it through an alias, so there is no second build to keep in
 # step and no dist/ to go stale. `npm pack` would add a build, a version bump and an install to
 # a loop whose whole point is that it runs in about a second.
@@ -119,12 +119,12 @@ fi
 # the existing COPY picks it up with no Dockerfile change.
 if [ -d "$PLATFORM/frontend/src" ] && [ -d "$DOMAIN/frontend" ]; then
   echo "syncing frontend"
-  UI="$DOMAIN/frontend/vendor/quorum-ui"
+  UI="$DOMAIN/frontend/vendor/semantic-explorer-base-ui"
   rm -rf "$UI"
   mkdir -p "$UI"
   cp -R "$PLATFORM/frontend/src" "$UI/src"
   cp "$PLATFORM/frontend/package.json" "$UI/package.json"
-  echo "  $(find "$UI/src" -type f | wc -l | tr -d ' ') files -> frontend/vendor/quorum-ui"
+  echo "  $(find "$UI/src" -type f | wc -l | tr -d ' ') files -> frontend/vendor/semantic-explorer-base-ui"
 fi
 
 echo

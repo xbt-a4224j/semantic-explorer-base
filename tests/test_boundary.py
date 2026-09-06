@@ -17,7 +17,7 @@ import re
 
 import pytest
 
-SRC = pathlib.Path(__file__).resolve().parents[1] / "src" / "quorum"
+SRC = pathlib.Path(__file__).resolve().parents[1] / "src" / "semantic_explorer_base"
 
 #: Words from the two domains this platform was extracted from. A third domain adds its own.
 #: Deliberately includes the medical set as well as the legal one — the point is not "no legal
@@ -128,7 +128,7 @@ def test_the_schema_files_are_packaged() -> None:
     import tomllib
 
     pyproject = tomllib.loads((SRC.parents[1] / "pyproject.toml").read_text())
-    package_data = pyproject["tool"]["setuptools"]["package-data"]["quorum"]
+    package_data = pyproject["tool"]["setuptools"]["package-data"]["semantic_explorer_base"]
     assert "db/*.sql" in package_data
 
     for name in ("spine.sql", "rename_legacy.sql"):

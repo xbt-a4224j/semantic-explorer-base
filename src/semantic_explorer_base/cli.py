@@ -39,7 +39,7 @@ import subprocess
 import sys
 from typing import Any
 
-from quorum.domain import InvalidDomain, load
+from semantic_explorer_base.domain import InvalidDomain, load
 
 EXIT_OK = 0
 EXIT_INVALID = 1
@@ -96,8 +96,8 @@ def check(root: pathlib.Path, cube_url: str) -> int:
     print(f"corpus     {domain.corpus}")
     print(f"subject    {domain.subject_axis}")
 
-    from quorum.cube.client import CubeUnavailable
-    from quorum.cube.client import meta as cube_meta
+    from semantic_explorer_base.cube.client import CubeUnavailable
+    from semantic_explorer_base.cube.client import meta as cube_meta
 
     try:
         meta = cube_meta(cube_url)
@@ -173,7 +173,7 @@ def check(root: pathlib.Path, cube_url: str) -> int:
 
 
 def migrate_cmd(root: pathlib.Path) -> int:
-    from quorum.db import migrate
+    from semantic_explorer_base.db import migrate
 
     with _connect() as conn:
         applied = migrate(conn, root)
@@ -192,8 +192,8 @@ def ingest_cmd(root: pathlib.Path) -> int:
     Claims the corpus first, before reading a byte. A guard that reports a collision after the
     write has documented the accident rather than prevented it.
     """
-    from quorum.db.corpus import ForeignCorpus, claim_corpus
-    from quorum.ingest import load_facts, load_records
+    from semantic_explorer_base.db.corpus import ForeignCorpus, claim_corpus
+    from semantic_explorer_base.ingest import load_facts, load_records
 
     domain = _domain(root)
     plan = getattr(domain, "ingest", None) or {}
@@ -270,9 +270,9 @@ def ask_cmd(root: pathlib.Path, question: str, cube_url: str) -> int:
     during the extraction — which is how the last two defects were found, both of them invisible
     to a green test suite.
     """
-    from quorum.agent.interpret import interpret
-    from quorum.cube.client import query as cube_query
-    from quorum.gates.min_n import apply as apply_gate
+    from semantic_explorer_base.agent.interpret import interpret
+    from semantic_explorer_base.cube.client import query as cube_query
+    from semantic_explorer_base.gates.min_n import apply as apply_gate
 
     domain = _domain(root)
     key = os.getenv("OPENAI_API_KEY")
@@ -343,7 +343,7 @@ def init_cmd(root: pathlib.Path, name: str | None) -> int:
     behind it (`docs/specs/` in the platform repo). Filling them in is SPEC-01 through SPEC-03,
     not this command.
     """
-    from quorum.scaffold import scaffold
+    from semantic_explorer_base.scaffold import scaffold
 
     written = scaffold(root, name or root.resolve().name)
     for path in written:

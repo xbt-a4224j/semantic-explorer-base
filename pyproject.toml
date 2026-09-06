@@ -1,5 +1,5 @@
 [project]
-name = "semantic-quorum"
+name = "semantic-explorer-base"
 version = "0.1.0"
 description = "A governed-answer layer: the model selects, the warehouse computes, thin slices are refused."
 requires-python = ">=3.12"
@@ -12,10 +12,10 @@ dependencies = ["httpx", "pydantic", "pydantic-settings", "structlog", "PyYAML"]
 agent = ["openai"]
 retrieval = ["numpy", "rank-bm25", "openai"]
 evals = ["numpy"]
-all = ["semantic-quorum[agent,retrieval,evals]"]
+all = ["semantic-explorer-base[agent,retrieval,evals]"]
 
 [project.scripts]
-quorum = "quorum.cli:main"
+quorum = "semantic_explorer_base.cli:main"
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -28,4 +28,4 @@ where = ["src"]
 # FileNotFoundError at container start. Templates likewise — `quorum init` is useless without
 # them, and both are the kind of omission that passes every test run from a source checkout.
 [tool.setuptools.package-data]
-quorum = ["db/*.sql", "templates/**/*"]
+semantic_explorer_base = ["db/*.sql", "templates/**/*"]

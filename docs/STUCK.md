@@ -34,7 +34,7 @@ that reason — a third domain sharing no cube, member or vocabulary with either
 ## Decided, with the reasoning, so it is not relitigated
 
 **Submodule, not pip-from-sibling.** The domain repos build with `context: .`, so
-`../semantic-quorum` is outside the Docker build context and cannot be `COPY`d. A submodule at
+`../semantic-explorer-base` is outside the Docker build context and cannot be `COPY`d. A submodule at
 `platform/` is inside it. This is decisive and was missed in the first design pass, which
 recommended pip and was wrong. One mechanism also serves both halves; pip + npm is two.
 

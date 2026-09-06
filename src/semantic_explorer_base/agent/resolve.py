@@ -41,7 +41,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from quorum.logging import get_logger
+from semantic_explorer_base.logging import get_logger
 
 log = get_logger()
 

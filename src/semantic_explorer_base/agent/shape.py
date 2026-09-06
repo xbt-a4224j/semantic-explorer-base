@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from quorum.domain import Domain
+from semantic_explorer_base.domain import Domain
 
 #: The closed set. Deliberately four — a fifth would mean a question the corpus answers that
 #: none of these covers, which is a modelling finding worth having rather than an enum to extend

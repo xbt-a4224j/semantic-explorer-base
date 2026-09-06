@@ -14,7 +14,7 @@ from typing import Any
 
 import httpx
 
-from quorum.logging import get_logger
+from semantic_explorer_base.logging import get_logger
 
 log = get_logger()
 

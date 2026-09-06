@@ -21,8 +21,8 @@ from typing import ClassVar
 
 import pytest
 
-from quorum.agent.prompt import build
-from quorum.domain import Domain
+from semantic_explorer_base.agent.prompt import build
+from semantic_explorer_base.domain import Domain
 
 BENCHMARKED = (pathlib.Path(__file__).parent / "fixtures" / "benchmarked_prompt.txt").read_text()
 
