@@ -63,9 +63,13 @@ def selection_for(domain: Domain, shape: str, subject: str | None) -> dict[str, 
         raise KeyError(f"{shape!r} is not one of {SHAPES}")
 
     if shape in ("distribution", "median") and not subject:
+        # Named in the domain's own word. A refusal reading "needs a deal point" is one a
+        # lawyer acts on; "needs a value for deal_points.deal_point_name" is one they route
+        # around, and an over-refusal people route around gets the gate switched off.
+        noun = (domain.strings or {}).get("subject", "subject")
         raise UnscopedShape(
-            f"the {shape!r} shape needs a value for {domain.subject_axis!r} — without one it "
-            f"aggregates across every subject in the corpus, which mixes unrelated answer "
+            f"the {shape!r} shape needs a {noun} ({domain.subject_axis}) — without one it "
+            f"aggregates across every {noun} in the corpus, which mixes unrelated answer "
             f"vocabularies into a single column"
         )
 

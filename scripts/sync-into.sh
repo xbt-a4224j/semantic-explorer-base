@@ -47,6 +47,17 @@ rm -f "$VENDOR"/semantic_quorum-*.whl
 
 echo "building wheel from $PLATFORM"
 cd "$PLATFORM"
+
+# Purge the staging directory before every build. setuptools copies a source file into
+# `build/lib` only when the source is NEWER BY MTIME, so a stale staged copy silently wins and
+# the wheel ships a mixture of versions.
+#
+# This is not hypothetical. A wheel built here shipped `domain.py` with a new property and
+# `shape.py` from before the change that added it — so a median was computed against the wrong
+# denominator by code that had been fixed, and `platform.lock` recorded the build as `clean`,
+# because it reads the git tree and never looked at the wheel. Five tests caught it. A demo
+# would not have.
+rm -rf "$PLATFORM/build"
 # --no-isolation keeps this to about a second. The isolated build is the correct default for a
 # release and the wrong one for a loop you run fifty times a day.
 "$PLATFORM/.venv/bin/python" -m build --wheel --no-isolation --outdir "$VENDOR" . >/dev/null 2>&1 || {
@@ -75,6 +86,25 @@ PY="$DOMAIN/.venv/bin/pip"
 if [ -x "$PY" ]; then
   "$PY" install -q --force-reinstall --no-deps "$WHEEL"
   echo "  installed into $DOMAIN/.venv"
+
+  # Verify, rather than assume. The failure above was invisible precisely because every step
+  # reported success — the build ran, the install ran, the lock said clean, and the code was
+  # still wrong. Comparing the installed bytes against the source is the only check that would
+  # have caught it, and it costs milliseconds.
+  SITE="$("$DOMAIN/.venv/bin/python" -c 'import quorum.domain,pathlib;print(pathlib.Path(quorum.domain.__file__).parent)')"
+  DRIFT=0
+  while IFS= read -r f; do
+    rel="${f#"$PLATFORM/src/quorum/"}"
+    if ! cmp -s "$f" "$SITE/$rel"; then
+      echo "  DRIFT: $rel differs from source" >&2
+      DRIFT=1
+    fi
+  done < <(find "$PLATFORM/src/quorum" -name '*.py')
+  if [ "$DRIFT" -ne 0 ]; then
+    echo "error: the installed package does not match src/. Wheel is stale — not usable." >&2
+    exit 70
+  fi
+  echo "  verified: installed bytes match src/"
 else
   echo "  no .venv in $DOMAIN — wheel is in vendor/, install it where you need it"
 fi

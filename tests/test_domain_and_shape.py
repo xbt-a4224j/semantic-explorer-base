@@ -21,6 +21,8 @@ LEGAL = Domain(
     count_measure="deal_points.n",
     record_count="comparable_deals.n",
     numeric_measures=("deal_points.median_numeric_value",),
+    numeric_count="deal_points.numeric_n",
+    strings={"subject": "deal point", "records": "agreements"},
 )
 
 # The REAL claims manifest, not a plausible one. The member names look legal in a claims
@@ -36,6 +38,8 @@ HEALTH = Domain(
     count_measure="deal_points.n",
     record_count="comparable_claims.n",
     numeric_measures=("deal_points.median_numeric_value",),
+    numeric_count="deal_points.numeric_n",
+    strings={"subject": "claim finding", "records": "claims"},
 )
 
 
@@ -48,9 +52,16 @@ class TestOneModuleServesBoth:
         assert s["filters"][0]["member"] == domain.subject_axis
 
     def test_a_median_carries_its_denominator(self, domain) -> None:
-        """A median with no n is a figure nobody can weigh."""
+        """A median with no n is a figure nobody can weigh — and it must be the PERCENTILE's n.
+
+        This used to assert `count_measure` and passed for the wrong reason: both fixtures left
+        `numeric_count` unset, so the denominator fell back to the subject's count and the
+        assertion could not fail. Only answers carrying a parseable number are in a percentile's
+        sample, 809 of 12,937 on the reference corpus, so the two differ by 16x.
+        """
         s = selection_for(domain, "median", "anything")
-        assert domain.count_measure in s["measures"]
+        assert domain.percentile_denominator in s["measures"]
+        assert domain.count_measure not in s["measures"], "16x the real sample"
 
     def test_a_count_uses_the_record_grain_not_the_subject_grain(self, domain) -> None:
         """The distinction that let a slice of one clear a threshold of five: the two counts
@@ -65,8 +76,19 @@ class TestOneModuleServesBoth:
 
     @pytest.mark.parametrize("shape", ["distribution", "median"])
     def test_a_shape_needing_the_subject_refuses_without_one(self, domain, shape) -> None:
-        with pytest.raises(UnscopedShape, match=domain.subject_axis):
+        """The message serves two readers and must satisfy both.
+
+        A lawyer reading "needs a value for deal_points.deal_point_name" routes around the
+        refusal; one reading "needs a deal point" fixes the question. A developer needs the
+        member to know which axis. Naming only the member is what this originally did, and
+        naming only the noun is the over-correction — an over-refusal people route around gets
+        the gate switched off rather than fixed.
+        """
+        with pytest.raises(UnscopedShape) as raised:
             selection_for(domain, shape, None)
+        message = str(raised.value)
+        assert domain.subject_axis in message, "a developer needs the member"
+        assert domain.strings["subject"] in message, "a user needs their own word"
 
 
 class TestTheManifestFailsLoudlyAtLoad:

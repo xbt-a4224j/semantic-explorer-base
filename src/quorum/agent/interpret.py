@@ -55,8 +55,25 @@ class Interpretation:
         return self.selection is not None
 
 
+def subject_field(domain: Domain | None = None) -> str:
+    """The JSON name the model fills in with its choice, in the domain's own noun.
+
+    Not a cosmetic detail. The field name is part of the prompt as far as the model is
+    concerned — it reads `deal_point` and answers a question about deal points. Renaming it to
+    a generic `subject` during extraction would have changed the measured configuration while
+    the prompt text stayed byte-identical, which is the most misleading kind of drift: the
+    thing being pinned looks untouched.
+
+    So it is derived from the domain's own word. `deal point` -> `deal_point` reproduces the
+    benchmarked call exactly; `violation` -> `violation` reads naturally for another corpus.
+    """
+    word = (getattr(domain, "strings", {}) or {}).get("subject", "subject") if domain else "subject"
+    return "_".join(word.lower().split())
+
+
 def interpretation_schema(
     glosses: dict[str, list[str]],
+    domain: Domain | None = None,
 ) -> tuple[dict[str, Any], dict[str, str]]:
     """The structured-output schema, and the map back to real subject names.
 
@@ -68,15 +85,16 @@ def interpretation_schema(
     corpus's 92 names contain one — `"Ability to consummate" concept is subject to MAE
     carveouts`. Sanitised here and resolved through the returned map.
     """
+    field = subject_field(domain)
     safe = {n.replace('"', "'"): n for n in glosses}
     schema: dict[str, Any] = {
         "type": "object",
         "properties": {
             "shape": {"type": ["string", "null"], "enum": [*SHAPES, None]},
-            "subject": {"type": ["string", "null"], "enum": [*safe, None]},
+            field: {"type": ["string", "null"], "enum": [*safe, None]},
             "covers_the_question": {"type": "boolean"},
         },
-        "required": ["shape", "subject", "covers_the_question"],
+        "required": ["shape", field, "covers_the_question"],
         "additionalProperties": False,
     }
     return schema, safe
@@ -108,7 +126,7 @@ def choose_interpretation(
     from openai import OpenAI
 
     gloss = glosses if glosses is not None else subject_glosses(domain, cube_url=cube_url)
-    schema, safe = interpretation_schema(gloss)
+    schema, safe = interpretation_schema(gloss, domain)
     listing = "\n".join(f"{n} :: {' | '.join(v)}" for n, v in sorted(gloss.items()))
     heading = domain.strings.get("subject_heading", "SUBJECT").title()
     response = OpenAI(api_key=api_key).chat.completions.create(
@@ -133,8 +151,9 @@ def choose_interpretation(
     if response.usage and usage is not None:
         usage.append((response.usage.prompt_tokens, response.usage.completion_tokens))
 
+    field = subject_field(domain)
     shape = out.get("shape") if out.get("shape") in SHAPES else None
-    subject = safe.get(out.get("subject")) if out.get("subject") else None
+    subject = safe.get(out.get(field)) if out.get(field) else None
     covers = bool(out.get("covers_the_question"))
     if not covers:
         subject = None
