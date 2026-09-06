@@ -71,6 +71,15 @@ class Domain:
     #: gate reading the inflated one let a slice of one clear a threshold of five.
     record_count: str
 
+    #: Every count measure the gate must read, widest grain FIRST. Defaults to
+    #: `(record_count, count_measure)`, which is right for a domain with only those two. A
+    #: corpus with a third — an explicit distinct-record count alongside the row count — lists
+    #: all of them, because the gate takes the minimum and a count it cannot see is a count it
+    #: cannot gate on. Both namespaces on the reference corpus call theirs `n`, and a single
+    #: hardcoded key silently disabled the gate on whichever one it was not: a slice of one came
+    #: back carrying counterparty names with `refused: false`.
+    count_measures: tuple[str, ...] = ()
+
     #: Percentile measures over the subject's numeric answers. Meaningless unless the selection
     #: is pinned to one subject value, because the underlying column holds several units at
     #: once — on the reference corpus, months and business days and percent. Unscoped, its
@@ -101,6 +110,11 @@ class Domain:
 
     #: Free-form, for the UI. The platform does not read these.
     strings: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def gated_counts(self) -> tuple[str, ...]:
+        """Every count the min_n gate reads. Never empty."""
+        return self.count_measures or (self.record_count, self.count_measure)
 
     @property
     def percentile_denominator(self) -> str:
@@ -153,6 +167,16 @@ class Domain:
                 "12,937 on the reference corpus — so reporting it against count_measure "
                 "overstates the sample by 16x"
             )
+        for name in self.count_measures:
+            if "." not in name:
+                raise InvalidDomain(
+                    f"count_measures entry {name!r} must be a fully qualified Cube member"
+                )
+        if self.count_measures and self.count_measure not in self.count_measures:
+            raise InvalidDomain(
+                "count_measures must include count_measure — the gate takes the minimum across "
+                "them, and a count it cannot see is a count it cannot gate on"
+            )
         if self.count_measure == self.record_count:
             raise InvalidDomain(
                 "count_measure and record_count must differ — they count different things, and "
@@ -178,7 +202,7 @@ def load(root: pathlib.Path | str = ".") -> Domain:
             f"{MANIFEST} has keys this platform does not understand: {sorted(unknown)}. "
             f"Known keys: {sorted(known)}"
         )
-    for key in ("numeric_measures", "selectable", "excluded_measures"):
+    for key in ("numeric_measures", "selectable", "excluded_measures", "count_measures"):
         if isinstance(raw.get(key), list):
             raw[key] = tuple(raw[key])
     domain = Domain(**raw)
