@@ -75,14 +75,22 @@ current one's check passes.
 | 03 | Cube Metadata | `cube/model/*.yml` | 01, 02 |
 | 04 | Facets & Resolution | facet rail config, filter-value resolution | 01, 03 |
 | 05 | Frontend Naming & Narrative | `strings.ts`, `glossary.ts`, tab copy, corpus prose | 01, 04 |
+| 06 | [Agent Selection & Benchmark](SPEC-06-agent-selection-and-benchmark.md) | your own eval question set + answer key, a measured score | 01, 03, 04 |
 
 The dependency is real, not procedural: spec 03 writes Cube dimensions against columns spec 02
 put in Postgres; spec 04 declares `closed_vocabulary` on dimensions spec 03 defined; spec 05
-writes prose about facets spec 04 built. Working out of order means guessing at a shape the
-earlier spec hasn't fixed yet, which is exactly the coupling this chain exists to avoid.
+writes prose about facets spec 04 built; spec 06 needs 04's filter-value resolution wired before
+a real benchmark question involving a filter can be graded honestly. Working out of order means
+guessing at a shape the earlier spec hasn't fixed yet, which is exactly the coupling this chain
+exists to avoid.
 
-Specs 06+ (agent prompt benchmark, eval question set) are validation against 01 and 04 together,
-not new construction — see SPEC-01's own acceptance section.
+**Spec 06 is construction, not validation — an earlier draft of this document said otherwise,
+and that was wrong.** The four-shape selection architecture, the one-call design, and the
+`min_n`-gate integration are pre-built platform mechanism; a real question set with a real
+answer key for a corpus nobody has asked questions of yet is not something that pre-exists for
+you to check against. It is evidence you have to build, and it is exactly as capable of being
+built badly — see SPEC-06 for the actual mistake (a benchmark that graded half its output and
+published a wrong headline number) this correction is naming from experience, not caution.
 
 ## What "done" means for the whole chain
 
