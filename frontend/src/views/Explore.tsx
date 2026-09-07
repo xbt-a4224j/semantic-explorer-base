@@ -45,6 +45,38 @@ interface Props {
    *  inferred. A claim about the corpus, so it cannot be the platform's. */
   corpusStrip?: (counts: CorpusCounts) => React.ReactNode
 
+  /**
+   * How the active `ExploreFilters` become the two request bodies this view sends. Defaults to
+   * sending `filters` verbatim to both `/facets` and `/comparables` — correct whenever a
+   * filter is a plain equality match on both endpoints, which is the common case.
+   *
+   * Override only when a filter needs server-side reshaping the platform cannot know: the
+   * reference domain's `signing_year` becomes a bare number for `/facets` but a
+   * `signed_from`/`signed_to` date range for `/comparables`. Before this hook existed that
+   * reshaping was hardcoded here by field name, which silently dropped every filter field a
+   * second domain used instead — `policy_state`, say — because nothing forwarded it.
+   */
+  toRequestFilters?: (filters: ExploreFilters) => {
+    facets: Record<string, unknown>
+    comparables: Record<string, unknown>
+  }
+
+  /**
+   * The resolved-query line above results (#26: "so a domain expert can catch a misread").
+   * Defaults to every active filter's value, joined by ' · ', plus `applied_filters.ranked_by`
+   * when the response carries one. Override for phrasing that reads more like the domain's own
+   * voice — the reference domain says "signed 2021-01-01 to 2021-12-31" rather than a bare
+   * filter dump.
+   */
+  describeQuery?: (results: ComparablesResponse, filters: ExploreFilters) => string
+
+  /**
+   * Ranking presets shown above results once a description is typed — the reference domain's
+   * Keyword/Hybrid/Meaning knob over BM25 vs. embeddings. Omit entirely for a domain whose
+   * search has no ranking axis to expose: a knob for a blend that is not actually computed
+   * would demonstrate a capability the search endpoint does not have.
+   */
+  rankers?: readonly { name: string; tone: string; alpha: number; why: string }[]
 }
 
 /**
@@ -57,11 +89,11 @@ interface Props {
  *
  * The dimensions come from `/facets` at runtime, which already knew them. Nothing here has to.
  */
-export type Filters = Record<string, string | null>
+export type ExploreFilters = Record<string, string | null>
 
 /** No filters. Built from the rail's own groups, so it cannot list a dimension the corpus
  *  does not have — an empty object is the honest starting point before /facets answers. */
-const EMPTY: Filters = {}
+const EMPTY: ExploreFilters = {}
 
 
 /**
@@ -71,33 +103,15 @@ const EMPTY: Filters = {}
  * are blended, because BM25 is unbounded and cosine sits in [0,1] — measured on this corpus,
  * BM25's spread is about 25x cosine's, so blending the raw numbers makes alpha a decoration.
  */
-const RANKERS = [
-  {
-    name: 'Keyword',
-    tone: 'exact',
-    alpha: 0,
-    why: 'BM25 only. Finds the words you typed. Misses a deal that says the same thing differently.',
-  },
-  {
-    name: 'Hybrid',
-    tone: 'hybrid',
-    alpha: 0.5,
-    why: 'Both, blended after each is normalised for this query. The default.',
-  },
-  {
-    name: 'Meaning',
-    tone: 'meaning',
-    alpha: 1,
-    why: 'Embeddings only. Finds deals that read like yours, and will happily rank one that shares no words with it.',
-  },
-] as const
-
 export function Explore({
   explainer,
   corpusStrip,
   strings,
+  toRequestFilters,
+  describeQuery: describeQueryProp,
+  rankers,
   render, searchRef, onSelectionChange, seedFilters, onSeedConsumed }: Props) {
-  const [filters, setFilters] = useState<Filters>(EMPTY)
+  const [filters, setFilters] = useState<ExploreFilters>(EMPTY)
   const [description, setDescription] = useState('')
   const [facets, setFacets] = useState<FacetsResponse | null>(null)
   const [results, setResults] = useState<ComparablesResponse | null>(null)
@@ -113,6 +127,18 @@ export function Explore({
   const listRef = useRef<HTMLUListElement>(null)
 
   const activeCount = Object.values(filters).filter(Boolean).length
+
+  // Which active filter, if any, has evidence a card can show — derived from `render.evidenceFor`
+  // (a dimension -> subject map the domain already supplies) rather than a hardcoded dimension
+  // name. This used to check `filters.consideration_type` specifically, which is `undefined` for
+  // any domain whose facets are named differently, silently disabling the whole feature for
+  // them.
+  const activeEvidenceDim = render?.evidenceFor
+    ? Object.keys(render.evidenceFor).find((dim) => filters[dim])
+    : undefined
+  const activeEvidenceFilter = activeEvidenceDim
+    ? { dimension: activeEvidenceDim, value: filters[activeEvidenceDim] as string }
+    : null
 
   // consume a journey seed exactly once: applying it and clearing it are the same act, so a
   // second render of the same seed (e.g. a parent re-render) cannot re-apply stale filters
@@ -136,24 +162,23 @@ export function Explore({
     setLoading(true)
     setError(null)
 
-    const facetBody = {
-      folio_industry_label: filters.folio_industry_label,
-      signing_year: filters.signing_year ? Number(filters.signing_year) : null,
-      deal_size_band: filters.deal_size_band,
-      consideration_type: filters.consideration_type,
-    }
+    // Verbatim by default: a plain-equality filter (claims-explorer's `policy_state`, say)
+    // needs no reshaping to be a valid request body for either endpoint. `toRequestFilters`
+    // exists only for a filter whose two endpoints want different shapes of the same value —
+    // see the reference domain's own override, just below the component, for the case that
+    // forced this hook to exist: `/facets` wants a bare `signing_year`, `/comparables` wants a
+    // `signed_from`/`signed_to` range built from it.
+    const { facets: facetBody, comparables: comparablesFilters } = (
+      toRequestFilters ?? ((f: ExploreFilters) => ({ facets: f, comparables: f }))
+    )(filters)
     const comparablesBody = {
       description: description.trim() || null,
-      // the industry filter belongs on the server: #18 filters in Postgres and builds the
-      // hybrid index over exactly the survivors, so scores are relative to the requested
-      // slice. Filtering the response here instead would rank against the whole corpus and
-      // report a candidate_count for records the partner never asked about.
-      folio_industry_code: filters.folio_industry_code,
-      signed_from: filters.signing_year ? `${filters.signing_year}-01-01` : null,
-      signed_to: filters.signing_year ? `${filters.signing_year}-12-31` : null,
-      deal_size_band: filters.deal_size_band,
-      consideration_type: filters.consideration_type,
-      alpha,
+      // the filter belongs on the server: #18 filters in Postgres and builds the hybrid index
+      // over exactly the survivors, so scores are relative to the requested slice. Filtering
+      // the response here instead would rank against the whole corpus and report a
+      // candidate_count for records the partner never asked about.
+      ...comparablesFilters,
+      ...(rankers ? { alpha } : {}),
       limit: 25,
     }
 
@@ -222,22 +247,21 @@ export function Explore({
   }, [move, records, cursor])
 
   function toggle(group: string, value: string, code: string | null) {
+    // `group` IS the filter key — FacetRail passes the facet's own `group.key` straight
+    // through (see `/facets`'s own response shape), so there is no name to look up. This used
+    // to branch on three hardcoded group names ('industry' | 'year' | 'consideration') and
+    // fall through to `deal_size_band` for anything else — clicking a facet value from a
+    // second domain's rail (`policy_state`, say) silently wrote into `deal_size_band` instead,
+    // a wrong key with no error anywhere.
     setFilters((f) => {
-      if (group === 'industry') {
-        const clearing = f.folio_industry_label === value
-        return {
-          ...f,
-          folio_industry_label: clearing ? null : value,
-          folio_industry_code: clearing ? null : code,
-        }
-      }
-      const key =
-        group === 'year'
-          ? 'signing_year'
-          : group === 'consideration'
-            ? 'consideration_type'
-            : 'deal_size_band'
-      return { ...f, [key]: f[key] === value ? null : value }
+      const clearing = f[group] === value
+      const next: ExploreFilters = { ...f, [group]: clearing ? null : value }
+      // A facet whose values carry a stable code (the reference domain's industry: a label may
+      // be retitled, the code is not) gets a parallel `${group}_code` key. A facet with no
+      // code — `code` is always null — never gains one, so this stays inert for a domain like
+      // claims-explorer whose four facets are already exactly the string a question would use.
+      if (code !== null) next[`${group}_code`] = clearing ? null : code
+      return next
     })
   }
 
@@ -265,18 +289,18 @@ export function Explore({
         />
         {results && (
           <p className="explore__resolved" data-testid="resolved-query">
-            {describeQuery(results, filters)}
+            {(describeQueryProp ?? defaultDescribeQuery)(results, filters)}
           </p>
         )}
 
-        {/* Only meaningful once there is a query to rank: with no description the endpoint
-            orders by matter id and every setting returns the same list, so a control that
-            appeared to do nothing would be worse than no control. */}
-        {description.trim() !== '' && (
+        {/* Only meaningful once there is a query to rank, and only for a domain that supplied
+            ranking presets — a knob for a blend `/comparables` does not actually compute would
+            demonstrate a capability the search does not have (see the `rankers` prop). */}
+        {rankers && description.trim() !== '' && (
           <div className="rank" data-testid="rank-control">
             <span className="rank__label">rank by</span>
             <div className="rank__group" role="radiogroup" aria-label="ranking method">
-              {RANKERS.map((r) => (
+              {rankers.map((r) => (
                 <button
                   key={r.alpha}
                   type="button"
@@ -291,7 +315,7 @@ export function Explore({
                 </button>
               ))}
             </div>
-            <p className="rank__why">{RANKERS.find((r) => r.alpha === alpha)?.why}</p>
+            <p className="rank__why">{rankers.find((r) => r.alpha === alpha)?.why}</p>
           </div>
         )}
       </div>
@@ -347,11 +371,7 @@ export function Explore({
                   record={record}
                     focused={i === cursor}
                     expanded={expanded === record.record_id}
-                    activeFilter={
-                      filters.consideration_type
-                        ? { dimension: 'consideration_type', value: filters.consideration_type }
-                        : null
-                    }
+                    activeFilter={activeEvidenceFilter}
                     onFocus={() => setCursor(i)}
                     onToggle={() =>
                       setExpanded((id) => (id === record.record_id ? null : record.record_id))
@@ -367,15 +387,20 @@ export function Explore({
   )
 }
 
-/** The resolved query, shown above every answer so a domain expert can catch a misread (#26). */
-function describeQuery(results: ComparablesResponse, filters: Filters): string {
-  const parts: string[] = []
-  const applied = results.applied_filters
-  if (filters.folio_industry_label) parts.push(filters.folio_industry_label)
-  if (applied.signed_from) parts.push(`signed ${applied.signed_from} to ${applied.signed_to}`)
-  if (applied.consideration_type) parts.push(applied.consideration_type)
-  if (applied.deal_size_band) parts.push(applied.deal_size_band)
-  parts.push(applied.ranked_by)
+/**
+ * The resolved query, shown above every answer so a domain expert can catch a misread (#26).
+ *
+ * Generic default: every active filter's own value, joined by ' · ', plus `ranked_by` if the
+ * response carries one — correct for any domain, readable for none of them in particular. A
+ * domain overrides `describeQuery` for phrasing that reads like its own voice, the way the
+ * reference domain says "signed 2021-01-01 to 2021-12-31" rather than a bare value.
+ */
+function defaultDescribeQuery(results: ComparablesResponse, filters: ExploreFilters): string {
+  const parts = Object.entries(filters)
+    .filter(([key, value]) => value && !key.endsWith('_code'))
+    .map(([, value]) => value as string)
+  const rankedBy = results.applied_filters?.ranked_by
+  if (rankedBy) parts.push(String(rankedBy))
   return `${parts.join(' · ')} · n=${results.candidate_count}`
 }
 

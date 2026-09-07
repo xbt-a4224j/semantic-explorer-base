@@ -62,6 +62,7 @@ export { IngestStatus, LogViewer } from './components/operator'
 // ── views ────────────────────────────────────────────────────────────────────────────────
 export { Rollup } from './views/Rollup'
 export { Explore } from './views/Explore'
+export type { ExploreFilters } from './views/Explore'
 export { Label } from './views/Label'
 export { Trust } from './views/Trust'
 

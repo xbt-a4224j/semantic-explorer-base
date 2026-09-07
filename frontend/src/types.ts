@@ -65,22 +65,15 @@ export interface CorpusRecord {
   [field: string]: unknown
 }
 
-export interface AppliedFilters {
-  folio_industry_code: string | null
-  folio_industry_label: string | null
-  rolled_up_to_descendants: number
-  deal_size_band: string | null
-  consideration_type?: string | null
-  signed_from: string | null
-  signed_to: string | null
-  ranked_by: string
-}
-
 export interface ComparablesResponse {
   records: CorpusRecord[]
   candidate_count: number
   returned_count: number
-  applied_filters: AppliedFilters
+  /** Whatever the domain's own search endpoint reports back about how it narrowed the
+   *  candidate set. Untyped here on purpose — a hardcoded shape (this used to name
+   *  folio_industry_code, deal_size_band, signed_from/to) is a second domain's applied
+   *  filters lying about their own shape, which nothing importing this type would catch. */
+  applied_filters: Record<string, unknown>
 }
 
 export interface SubjectDetail {
