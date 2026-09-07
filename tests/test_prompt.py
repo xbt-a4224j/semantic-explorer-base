@@ -17,6 +17,7 @@ implementation shipped when it scored 20 of 27 on `docs/eval/ask_questions.json`
 from __future__ import annotations
 
 import pathlib
+import re
 from typing import ClassVar
 
 import pytest
@@ -47,6 +48,17 @@ LEGAL_STRINGS = {
     ],
     # Full phrases, because the benchmarked text repeats "no" before each.
     "absent": ["no deal values in dollars", "no fee amounts", "no adviser names"],
+    # The four grammatical variants of "deal point" the prompt needs, plus its units and one
+    # scope example. These lived hardcoded inside prompt.py until a second domain read the
+    # assembled prompt and found itself being told about "negotiated terms" and "agreements";
+    # the values here are the exact words the benchmarked text used, which is why that fixture
+    # still matches byte-for-byte.
+    "subject_generic": "term",
+    "subject_generic_plural": "terms",
+    "subject_qualifier": "negotiated",
+    "subject_short": "point",
+    "numeric_units_phrase": "days, months or percent",
+    "scope_example": "healthcare",
 }
 
 
@@ -84,6 +96,12 @@ class TestOnlyNounsChangeBetweenDomains:
         "corpus_description": "city health inspections",
         "terms_of_art": ["cold holding", "handwashing"],
         "absent": ["no inspector names", "no fine amounts"],
+        "subject_generic": "violation",
+        "subject_generic_plural": "violations",
+        "subject_qualifier": "cited",
+        "subject_short": "violation",
+        "numeric_units_phrase": "days or counts",
+        "scope_example": "downtown",
     }
 
     def test_the_structural_sentences_survive_unchanged(self) -> None:
@@ -91,8 +109,11 @@ class TestOnlyNounsChangeBetweenDomains:
         for sentence in (
             "distribution — DEFAULT.",
             "the answer is the split of positions with counts",
-            "Only use count or coverage when NO term is named.",
-            "median — a typical NUMBER for a term measured in days, months or percent.",
+            # These two used to be asserted with MAUD's word "term" baked in, which passed only
+            # because the platform was hardcoding it — the exact bug this file exists to catch.
+            # The SHAPE of the sentence is platform; the noun inside it is the domain's.
+            "Only use count or coverage when NO violation is named.",
+            "median — a typical NUMBER for a violation measured in days or counts.",
             "Return null for BOTH, too, when the question asks to compare",
             "Also return `covers_the_question`",
         ):
@@ -104,11 +125,42 @@ class TestOnlyNounsChangeBetweenDomains:
         assert "deal point" not in alien
         assert "merger" not in alien
 
+    def test_no_word_from_the_reference_domain_survives_into_another(self) -> None:
+        """The check that was missing, and the reason it mattered.
+
+        `test_the_nouns_do_change` looked for exactly two MAUD words, so it passed for a year
+        while the prompt hardcoded six others. A claims domain read its own assembled prompt and
+        found itself being told to look for "a negotiated TERM" in "agreements" — the platform
+        asserting M&A vocabulary at a corpus of car crashes.
+
+        Every word below was hardcoded in `prompt.py` until 2026-09-07. `healthcare` and
+        `cash deal` were worse: they were added the same week, in the SCOPE block, by someone
+        (me) copying the reference domain's own examples into shared code.
+        """
+        alien = build(_domain(strings=self.ALIEN)).lower()
+        # "terms of art" is generic English — every specialist field has them — so it stays
+        # platform prose. Removed before the check rather than dropped from it, so the bare
+        # word "term" is still caught everywhere else.
+        alien = alien.replace("terms of art", "«idiom»")
+        for leaked in (
+            "negotiated",
+            "agreement",
+            "deal",
+            "term",
+            "point",
+            "healthcare",
+            "months or percent",
+        ):
+            assert not re.search(rf"\b{leaked}", alien), (
+                f"{leaked!r} is the reference domain's word, not the platform's — "
+                f"it must come from strings, or this prompt is lying to every other corpus"
+            )
+
     def test_a_domain_with_no_terms_of_art_omits_that_line(self) -> None:
         """Not every corpus has terms of art. An empty list must not leave a dangling heading
         with nothing under it."""
         bare = build(_domain(strings={**self.ALIEN, "terms_of_art": []}))
-        assert "Terms of art map to their point" not in bare
+        assert "Terms of art map to their violation" not in bare
         assert "distribution — DEFAULT." in bare
 
 

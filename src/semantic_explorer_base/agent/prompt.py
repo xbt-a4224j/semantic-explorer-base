@@ -54,6 +54,22 @@ def build(domain: Domain) -> str:
     terms = s.get("terms_of_art") or ()
     absent = s.get("absent") or ()
 
+    # Four grammatical variants of one noun, because English. The shape definitions need a bare
+    # lowercase form ("a negotiated TERM", "one term"), its plural ("negotiated terms only"), and
+    # a short form for the two sentences that say "point" where `subject` would read "deal point".
+    # These were hardcoded MAUD words until a second domain read the assembled prompt end to end
+    # and found it telling a claims analyst about "negotiated terms" and "agreements".
+    #
+    # Defaults keep a domain that omits them working — it gets `subject` everywhere, which reads
+    # correctly, just more repetitively than the benchmarked text.
+    generic = s.get("subject_generic", subject)
+    generic_plural = s.get("subject_generic_plural", s.get("subjects", f"{generic}s"))
+    qualifier = s.get("subject_qualifier", "")
+    short = s.get("subject_short", subject)
+    # A space only when there is an adjective, so a domain with none does not get "a  FINDING".
+    qualified = f"{qualifier} " if qualifier else ""
+    units = s.get("numeric_units_phrase", "days, months or percent")
+
     # The slice a question is asked OF, distinct from the subject it is asked ABOUT. Added
     # after "what are the cash-only deals in healthcare?" returned the corpus-wide split: the
     # subject resolved, the word `healthcare` had nowhere to go, and the answer looked right.
@@ -61,24 +77,34 @@ def build(domain: Domain) -> str:
     # benchmarked prompt byte-for-byte.
     scope_block = ""
     if getattr(domain, "scope_dimensions", ()):
+        # `scope_example` is one value a person might name as a slice, in this domain's own
+        # words. It was hardcoded to 'healthcare' — and the second sentence to 'is a cash deal
+        # market for healthcare' — which told a claims analyst about M&A. The instruction the
+        # example carries ("verbatim, do not guess the data's spelling") is worth a concrete
+        # word, so it is supplied rather than dropped.
+        example = s.get("scope_example", "")
+        verbatim = (
+            f"the words the question used, verbatim: write '{example}', not a guess at how the "
+            "data spells it"
+            if example
+            else "the words the question used, verbatim, not a guess at how the data spells it"
+        )
         scope_block = (
             "\n\nSCOPE\n"
             f"A question may also name SLICES of the corpus — which {records} to look at, "
             f"rather than which {subject} to look at. Return one entry in `scopes` for EACH "
-            "slice named, with `dimension` (one of the listed members) and `value` (the words "
-            "the question used, verbatim: write 'healthcare', not a guess at how the data "
-            "spells it). Return an empty list when the question names no slice.\n"
+            f"slice named, with `dimension` (one of the listed members) and `value` ({verbatim}). "
+            "Return an empty list when the question names no slice.\n"
             "Return every slice you see, INCLUDING one you doubt this corpus carries. Whether "
             "the value exists is checked afterwards against the real column, and a slice you "
             "leave out is not checked at all — it is silently ignored, and the answer then "
             "describes the whole corpus while appearing to answer the narrower question.\n"
-            f"Slices are INDEPENDENT of the shape: 'how many {s.get('colloquial', records)} "
-            "are healthcare' is a count with a scope, and 'is a cash deal market for healthcare' "
-            "is a distribution with a scope."
+            "Slices are INDEPENDENT of the shape: a question can name a slice and still be any "
+            "of the four shapes — a count with a scope, or a distribution with a scope."
         )
 
     term_line = (
-        f"Terms of art map to their point: {', '.join(repr(t) for t in terms)} each name one.\n\n"
+        f"Terms of art map to their {short}: {', '.join(repr(t) for t in terms)} each name one.\n\n"
         if terms
         else ""
     )
@@ -87,7 +113,9 @@ def build(domain: Domain) -> str:
         # ("no deal values in dollars, no fee amounts, and no adviser names"). A template that
         # prefixes one "no" and joins reads differently, and a prompt that reads differently is
         # a prompt whose score is unknown.
-        f" — it records negotiated terms only, and holds {_oxford(absent)}." if absent else "."
+        f" — it records {qualified}{generic_plural} only, and holds {_oxford(absent)}."
+        if absent
+        else "."
     )
 
     return (
@@ -96,28 +124,29 @@ def build(domain: Domain) -> str:
         "SHAPE\n"
         # DEFAULT is load-bearing: 7/27 -> 17/27. Described as merely "the usual case", the
         # model chose count or coverage for two thirds of the answerable questions.
-        "distribution — DEFAULT. Use this whenever the question names or implies a negotiated "
+        f"distribution — DEFAULT. Use this whenever the question names or implies a {qualified}"
         # `colloquial` is separate from `records` on purpose: the prompt's example phrasings
         # are how a USER would say it ("how many deals"), while the shape definitions describe
         # what is counted ("how many agreements"). Collapsing them changes the examples, and
         # the examples are the part that took this from 7/27 to 17/27.
-        f"TERM, however it is phrased. 'How many {s.get('colloquial', records)} have X', 'do agreements "
-        f"include X', 'is X usually A or B' and 'what is market for X' are ALL distribution: "
+        f"{generic.upper()}, however it is phrased. 'How many {s.get('colloquial', records)} have X', "
+        f"'do {records} include X', "
+        f"'is X usually A or B' and 'what is market for X' are ALL distribution: "
         "the answer is the split of positions with counts. Only use count or coverage when NO "
-        "term is named.\n"
-        "median — a typical NUMBER for a term measured in days, months or percent.\n"
-        f"count — how many {records}, with NO term named.\n"
-        f"coverage — how many {records} we have an answer for on one term.\n\n"
+        f"{generic} is named.\n"
+        f"median — a typical NUMBER for a {generic} measured in {units}.\n"
+        f"count — how many {records}, with NO {generic} named.\n"
+        f"coverage — how many {records} we have an answer for on one {generic}.\n\n"
         f"{s.get('subject_heading', subject.upper())}\n"
         f"{term_line}"
         f"Return null for BOTH when this corpus cannot answer the question{absent_line}\n\n"
         # The second kind of unanswerable: not absent DATA but absent COMPUTATION. Worth 3 of
         # the 27 — before it, "which of these is most off-market" returned the corpus size.
         f"Return null for BOTH, too, when the question asks to compare {records} with one "
-        f"another, rank them, score one overall, or find {s.get('colloquial', records)} where two different terms "
+        f"another, rank them, score one overall, or find {s.get('colloquial', records)} where two different {generic_plural} "
         "both hold. Those are real questions and none of them can be answered here.\n\n"
         f"Also return `covers_the_question`: true only if the {subject} you chose actually "
-        "answers what was asked. Choosing the closest available point and marking it false is "
+        f"answers what was asked. Choosing the closest available {short} and marking it false is "
         "the right response when this taxonomy does not cover the question."
         + scope_block
     )
