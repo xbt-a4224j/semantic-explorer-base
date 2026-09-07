@@ -72,8 +72,9 @@ export interface QuorumStrings {
    */
   readonly noSpanReason: string
 
-  /** An example question, for the Ask placeholder. The one string here that is genuinely
-   *  content rather than vocabulary — a bad example teaches the wrong thing about the corpus. */
+  /** An example question, pre-filled into the Ask box so a first-time visitor can press Enter
+   *  rather than compose a question cold. The one string here that is genuinely content rather
+   *  than vocabulary — a bad example teaches the wrong thing about the corpus. */
   readonly exampleQuestion: string
 
   /**

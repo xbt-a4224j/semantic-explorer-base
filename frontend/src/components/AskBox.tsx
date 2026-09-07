@@ -356,7 +356,10 @@ export function AskBox({
    */
   onDrill?: (subject: string, position: string) => Promise<DrillResult>
 }) {
-  const [question, setQuestion] = useState('')
+  // Pre-filled, not just a placeholder: a first-time visitor should be able to press Enter and
+  // see the whole loop run, rather than stare at an empty box and have to compose a question
+  // cold before they know what the vocabulary can even answer.
+  const [question, setQuestion] = useState(strings.exampleQuestion)
   const [asking, setAsking] = useState(false)
   const [asked, setAsked] = useState<AskResponse | null>(null)
   const [confirmed, setConfirmed] = useState<Confirmed | null>(null)
