@@ -258,7 +258,7 @@ export function Explore({
           ref={searchRef}
           className="explore__input"
           type="search"
-          placeholder="Describe the deal in front of you…  ( / to focus )"
+          placeholder="Describe the deal in front of you…"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           aria-label="describe the deal"
