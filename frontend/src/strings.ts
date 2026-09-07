@@ -101,6 +101,14 @@ export const TAB_IDS = ['overview', 'ask', 'explore', 'terms', 'trust', 'label']
 export type TabId = (typeof TAB_IDS)[number]
 
 /**
+ * Where the tab bar splits: the product an analyst uses, and the evidence that its answers can
+ * be trusted. This grouping is the same call for any corpus — trust and label are always the
+ * evidence for whatever precedes them — so it lives here rather than being re-decided per
+ * domain the way `tabs.ts`'s `group` field made it look.
+ */
+export const EVIDENCE_TAB_IDS: ReadonlySet<TabId> = new Set(['trust', 'label'])
+
+/**
  * There is no registry, no context and no hook. `QuorumStrings` is a plain interface and a
  * domain passes an instance down from its own composition root.
  *

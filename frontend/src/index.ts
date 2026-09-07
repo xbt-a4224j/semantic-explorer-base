@@ -33,7 +33,7 @@
  */
 
 // ── design system ────────────────────────────────────────────────────────────────────────
-export { TAB_IDS } from './strings'
+export { EVIDENCE_TAB_IDS, TAB_IDS } from './strings'
 export type { Glossary, QuorumStrings, TabId } from './strings'
 
 // ── primitives ───────────────────────────────────────────────────────────────────────────
@@ -53,6 +53,8 @@ export { RoutingDiagram } from './components/RoutingDiagram'
 
 // ── the product's own shapes ─────────────────────────────────────────────────────────────
 export { RecordCard } from './components/RecordCard'
+export { Shell } from './components/Shell'
+export type { ShellProps, ShellSearch, ShellStatus } from './components/Shell'
 export { FacetRail } from './components/FacetRail'
 export { AskBox } from './components/AskBox'
 export { Grading } from './components/Grading'

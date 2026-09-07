@@ -1,0 +1,6 @@
+/* The platform's whole stylesheet: tokens, then every rule a platform component needs. One
+   import gets a domain the full set; tokens.css stays independently importable for a consumer
+   that wants only the design tokens (a static mockup, a style guide) and none of the component
+   rules. */
+@import './tokens.css';
+@import './components.css';

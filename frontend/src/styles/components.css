@@ -1,0 +1,1436 @@
+/* Every rule below styles a platform component (AskBox, Rollup, Explore, Label, Trust, Shell,
+   RecordCard, the chart/diagram primitives). Extracted 2026-09-07 from clause-explorer's
+   `shell.css`, where it lived beside the app's own view code even though none of it named a
+   legal thing — a second domain following the specs would have reached a correct, unstyled
+   app, because nothing shipped this. Classified mechanically: a rule stayed here only if some
+   platform .tsx actually renders the class it styles (github.com/xbt-a4224j/semantic-explorer-
+   base/issues/8 has the method). What moved instead is domain-side view composition — Ask.tsx's
+   own page layout, Overview's journey cards, the QueryBuilder worked-examples widget.
+
+   Selectors and values are unchanged from the source file. This is a location change, not a
+   restyle — verified by computed-style snapshot, not by eye, because eyeballing missed the
+   route-name mismatch that shipped broken in the same repo this same week. */
+
+.shell {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+}
+
+/* ---- top bar ---- */
+.shell__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--pad-lg);
+  padding: 0 var(--pad-lg);
+  height: 48px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface-1);
+}
+
+.shell__brand {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.shell__tabs { display: flex; gap: 2px; }
+
+.shell__tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-subtle);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.shell__tab:hover { color: var(--ink-muted); background: var(--surface-2); }
+
+.shell__tab.is-active { color: var(--ink); background: var(--surface-3); }
+
+.shell__tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 10px; right: 10px; bottom: -1px;
+  height: 1px;
+  background: var(--accent);
+}
+
+/* the number-key affordance — discoverable without opening the help overlay */
+.shell__tabkey {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-tertiary);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 3px;
+  padding: 0 3px;
+  line-height: 14px;
+}
+
+.shell__search {
+  margin-left: auto;
+  width: 260px;
+  padding: 5px 10px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius);
+  background: var(--canvas);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.shell__search::placeholder { color: var(--ink-tertiary); }
+
+/* ---- main ---- */
+/* padding-bottom is deliberately large: this is the scroll container, and the last control in
+   a tab (the Admin log filter) sat flush against the fixed status strip with 20px of clearance,
+   which read as clipped. */
+.shell__main { padding: var(--pad-lg) var(--pad-lg) 4rem; overflow: auto; }
+
+.shell__title { margin: 0; font-size: 18px; font-weight: 500; letter-spacing: -0.2px; }
+
+.shell__hint { margin: 2px 0 0; color: var(--ink-subtle); font-size: 13px; }
+
+.shell__pending {
+  margin-top: var(--pad-lg);
+  padding: var(--pad-md);
+  max-width: 560px;
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--radius);
+  color: var(--ink-tertiary);
+  font-size: 13px;
+}
+
+/* ---- status strip ---- */
+.shell__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 var(--pad-lg);
+  border-top: 1px solid var(--hairline);
+  background: var(--surface-1);
+  color: var(--ink-subtle);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.shell__dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+
+.shell__dot--ok { background: var(--success); }
+
+/* Primer attention.fg / danger.fg — the dark-theme values washed out on a light canvas */
+.shell__dot--warn { background: var(--warn); }
+
+.shell__dot--bad { background: var(--danger); }
+
+.shell__sep { color: var(--ink-tertiary); }
+
+.shell__spacer { flex: 1; }
+
+.shell__helpbtn {
+  border: 0; background: transparent; color: var(--ink-subtle);
+  font: inherit; cursor: pointer; padding: 2px 4px; border-radius: 3px;
+}
+
+.shell__helpbtn:hover { color: var(--ink); }
+
+/* ---- shortcut overlay ---- */
+.shell__scrim {
+  position: fixed; inset: 0;
+  background: var(--scrim);
+  display: grid; place-items: center;
+}
+
+.shell__dialog {
+  min-width: 340px;
+  padding: var(--pad-lg);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 10px;
+  background: var(--surface-1);
+}
+
+.shell__dialogtitle { margin: 0 0 var(--pad-md); font-size: 14px; font-weight: 500; }
+
+.shell__keys { margin: 0; display: grid; gap: 6px; }
+
+.shell__keyrow { display: grid; grid-template-columns: 88px 1fr; align-items: center; }
+
+.shell__keyrow dd { margin: 0; color: var(--ink-subtle); font-size: 13px; }
+
+kbd {
+  font-family: var(--font-mono); font-size: 11px;
+  border: 1px solid var(--hairline-strong); border-radius: 3px;
+  padding: 1px 5px; color: var(--ink-muted); background: var(--surface-3);
+}
+
+.shell__close {
+  margin-top: var(--pad-lg); width: 100%;
+  padding: 6px; border: 1px solid var(--hairline-strong); border-radius: var(--radius);
+  background: transparent; color: var(--ink-subtle); font: inherit; cursor: pointer;
+}
+
+.shell__close:hover { color: var(--ink); border-color: var(--accent); }
+
+.explore { display: flex; flex-direction: column; gap: var(--pad-md); min-height: 0; }
+
+.explore__search { display: flex; flex-direction: column; gap: var(--pad-sm); }
+
+.explore__input {
+  width: 100%;
+  padding: var(--pad-md) var(--pad-md);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.explore__input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* the resolved query, above every answer, so a domain expert can catch a misinterpretation */
+.explore__resolved {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+  letter-spacing: 0.01em;
+}
+
+/* minmax(0,·) not 1fr: an auto minimum lets a long unbroken clause set the track's floor, and
+   the whole page scrolls sideways instead of the text wrapping. */
+.explore__body {
+  display: grid; grid-template-columns: 15rem minmax(0, 1fr);
+  gap: var(--pad-lg); align-items: start; min-width: 0;
+}
+
+.facets { display: flex; flex-direction: column; gap: var(--pad-md); }
+
+.facets__total { font-size: 11px; color: var(--ink-muted); }
+
+.facets__totalnum { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.facet__title {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink-muted); margin-bottom: var(--pad-sm);
+}
+
+.facet__n { font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
+
+.facet__values { display: flex; flex-direction: column; gap: 1px; }
+
+.facet__value {
+  display: flex; justify-content: space-between; gap: var(--pad-md); width: 100%; min-width: 0;
+  padding: var(--pad-sm) var(--pad-sm);
+  background: transparent; border: 0; border-radius: var(--radius);
+  color: var(--ink); font-size: 13px; text-align: left; cursor: pointer;
+}
+
+.facet__value:hover:not(:disabled) { background: var(--surface-2); }
+
+.facet__value:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.facet__value.is-selected { background: var(--surface-2); box-shadow: inset 2px 0 0 var(--accent); }
+
+/* zero-count values stay visible and disabled: what the corpus lacks is information */
+.facet__value:disabled { color: var(--ink-tertiary); cursor: not-allowed; }
+
+/* a dimension with no filterable data: dimmed but present, with the reason stated. It is not
+   an error and not an empty result — the axis exists, the data behind it has not landed. */
+.facet--unavailable .facet__title { color: var(--ink-tertiary); }
+
+.facet__unavailable {
+  margin: calc(var(--pad-sm) * -1) 0 var(--pad-sm);
+  padding: var(--pad-sm);
+  border-left: 2px solid var(--hairline);
+  color: var(--ink-tertiary); font-size: 11px; line-height: 1.45;
+}
+
+.facet__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.facet__count { font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+
+.explore__count { font-size: 11px; color: var(--ink-muted); margin-bottom: var(--pad-md); }
+
+.explore__list { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+
+.card { background: var(--surface-1); border: 1px solid var(--hairline-strong); border-radius: var(--radius); }
+
+.card.is-focused { box-shadow: inset 2px 0 0 var(--accent); background: var(--surface-2); }
+
+.card__hit {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--pad-md);
+  flex-wrap: wrap; min-width: 0;
+  width: 100%; padding: var(--pad-md) var(--pad-md);
+  background: transparent; border: 0; color: var(--ink); text-align: left; cursor: pointer;
+}
+
+.card__hit:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.card__title { font-size: 13px; min-width: 0; overflow-wrap: anywhere; flex: 1 1 18rem; }
+
+.card__meta { display: flex; align-items: center; gap: var(--pad-md); flex-wrap: wrap; min-width: 0; font-size: 11px; color: var(--ink-muted); }
+
+/* inferred data is marked wherever it appears — never presented beside gold labels unflagged */
+.tag__inferred {
+  font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 1px 4px; border: 1px dashed var(--hairline); border-radius: 2px; color: var(--ink-tertiary);
+}
+
+.card__detail { padding: 0 var(--pad-md) var(--pad-md); border-top: 1px solid var(--hairline); }
+
+/* loading / empty / refusal are three distinct designed states */
+.state { padding: var(--pad-lg) var(--pad-lg); border: 1px dashed var(--hairline); border-radius: var(--radius); text-align: center; }
+
+.state__title { font-size: 13px; margin-bottom: var(--pad-sm); }
+
+.state__body { font-size: 11px; color: var(--ink-muted); }
+
+.state__hint { font-size: 11px; color: var(--ink-tertiary); margin-top: var(--pad-sm); }
+
+.state--error { border-style: solid; }
+
+.state__action {
+  margin-top: var(--pad-md); padding: var(--pad-sm) var(--pad-md);
+  background: transparent; border: 1px solid var(--hairline); border-radius: var(--radius);
+  color: var(--ink); font-size: 11px; cursor: pointer;
+}
+
+.state__action:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.skeleton { background: var(--surface-2); border-radius: var(--radius); animation: pulse 1.6s ease-in-out infinite; }
+
+.skeleton--facet { height: 1.5rem; margin-bottom: 2px; }
+
+.skeleton--card { padding: var(--pad-md); margin-bottom: 1px; background: var(--surface-1); animation: none; }
+
+.skeleton--line { height: 0.6rem; margin-bottom: var(--pad-sm); }
+
+.skeleton--title { width: 40%; height: 0.8rem; }
+
+.skeleton--short { width: 25%; }
+
+@keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.45 } }
+
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none } }
+
+.card__toolbar {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--pad-md);
+  flex-wrap: wrap; margin-bottom: var(--pad-sm);
+}
+
+.card__provenance { font-size: 11px; color: var(--ink-muted); }
+
+.card__copy {
+  padding: 4px 10px; font-size: 11px;
+  background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--radius);
+  color: var(--ink); cursor: pointer;
+}
+
+.card__copy:hover { border-color: var(--ink-tertiary); }
+
+.card__copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.card__cite { font-size: 11px; color: var(--ink-muted); margin-bottom: var(--pad-md); }
+
+.card__loading { display: flex; flex-direction: column; gap: 6px; }
+
+.skeleton--row { height: 34px; border-radius: var(--radius); }
+
+.dps { display: flex; flex-direction: column; gap: 1px; }
+
+.dp { padding: var(--pad-sm) 0; border-top: 1px solid var(--hairline); min-width: 0; }
+
+/* ── label-left / value-right rows, and the trap in all of them ───────────────────────────
+   These rows put a label beside a value that comes from the corpus, and corpus values are not
+   short: one MAUD answer reads "Capitalization-Other, Authority, Approval, Enforceability,
+   Organization, No MAE, Brokers' Fee, Takeover Statutes". A flex child with `white-space:
+   nowrap` and no `min-width` refuses to shrink, so the row's free space is taken entirely by
+   the value and the LABEL collapses to min-content, wrapping one character per line.
+
+   Giving only the label `min-width: 0` does not help: it makes the label shrinkable and the
+   value still unshrinkable, which is exactly how it fails. Both sides need a floor, the value
+   must be allowed to wrap, and the row must be able to break so a long value takes its own
+   line rather than squeezing its neighbour off the screen. This is the second sighting; the
+   first was the drill row on Deal Terms. */
+.dp__head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: var(--pad-md); margin-bottom: 4px; flex-wrap: wrap;
+}
+
+.dp__name { font-size: 12px; color: var(--ink); min-width: 0; overflow-wrap: anywhere; flex: 1 1 16rem; }
+
+.dp__position {
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-subtle);
+  display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
+  min-width: 0; overflow-wrap: anywhere; text-align: right;
+}
+
+/* The clause is a verbatim slice of the agreement and can run to thousands of characters.
+   It scrolls inside its own box: the page itself must never scroll horizontally. */
+.dp__clause {
+  max-height: 220px; overflow: auto; overscroll-behavior: contain;
+  padding: var(--pad-sm); margin: 4px 0;
+  background: var(--surface-2); border-left: 2px solid var(--hairline); border-radius: var(--radius);
+  font-family: var(--font-mono); font-size: 11px; line-height: 1.5; color: var(--ink-subtle);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+.dp__span { font-size: 10px; }
+
+/* not an error — the label exists, MAUD just located no range for it */
+.dp__missing { font-size: 11px; color: var(--ink-tertiary); font-style: italic; }
+
+.card__score { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.card__scores {
+  display: flex; gap: var(--pad-md); flex-wrap: wrap;
+  margin-bottom: var(--pad-sm); font-family: var(--font-mono); font-size: 11px;
+}
+
+.card__scores dt { color: var(--ink-tertiary); }
+
+.card__scores dd { margin: 0 0 0 4px; color: var(--ink-subtle); font-variant-numeric: tabular-nums; }
+
+.terms { display: flex; flex-direction: column; gap: var(--pad-md); }
+
+/* the scope statement is not decoration: it stops a reader taking public comparables for the
+   firm's own negotiating history */
+.terms__scope {
+  padding: var(--pad-sm) var(--pad-md);
+  border-left: 2px solid var(--accent);
+  background: var(--surface-1);
+  color: var(--ink-subtle); font-size: 12px; line-height: 1.5;
+}
+
+.terms__caption { font-size: 11px; color: var(--ink-muted); line-height: 1.5; }
+
+.terms__skeleton { display: flex; flex-direction: column; gap: 6px; }
+
+.terms__list { display: flex; flex-direction: column; gap: 1px; }
+
+.term { background: var(--surface-1); border: 1px solid var(--hairline-strong); border-radius: var(--radius); }
+
+/* absent is dimmed but never hidden — "we checked and it is not there" is a finding */
+.term--absent { opacity: 0.72; }
+
+.term__hit {
+  display: flex; justify-content: space-between; align-items: baseline; gap: var(--pad-md);
+  flex-wrap: wrap; min-width: 0;
+  width: 100%; padding: var(--pad-md);
+  background: transparent; border: 0; color: var(--ink); text-align: left; cursor: pointer;
+}
+
+.term__hit:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.term__name { font-size: 13px; min-width: 0; overflow-wrap: anywhere; flex: 1 1 18rem; }
+
+.term__figures { display: flex; align-items: baseline; gap: var(--pad-md); white-space: nowrap; }
+
+/* prevalence bar: a neutral second channel for the count. The WIDTH is a proportion; no figure is
+   ever derived from it and the division lives in CSS, not in the view (see the DealTerms rule). */
+.term__bar {
+  position: relative; width: 64px; height: 6px; flex: none;
+  background: var(--surface-3); border-radius: 3px; overflow: hidden;
+}
+
+.term__bar::after {
+  content: ''; position: absolute; inset: 0;
+  width: calc(var(--n, 0) / var(--of, 1) * 100%);
+  background: var(--ink-tertiary); border-radius: 3px;
+}
+
+.term__display {
+  font-family: var(--font-mono); font-size: 13px; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.term__display--percentage { color: var(--ink); }
+
+.term__numeric { font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); }
+
+.term__positions {
+  display: flex; flex-wrap: wrap; gap: var(--pad-sm);
+  padding: 0 var(--pad-md) var(--pad-sm);
+}
+
+.term__position {
+  display: inline-flex; gap: 6px; align-items: baseline;
+  padding: 2px 6px; border: 1px solid var(--hairline); border-radius: var(--radius);
+  font-size: 11px;
+}
+
+.term__poslabel { color: var(--ink-subtle); }
+
+.term__absent { padding: 0 var(--pad-md) var(--pad-sm); font-size: 11px; color: var(--ink-tertiary); }
+
+.term__drill {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 0 var(--pad-md) var(--pad-sm); font-size: 11px;
+}
+
+/* A drill row stacks: identity line, then the text. It was a horizontal flex row (head |
+   clause | provenance), which only held together at wide viewports — the head has no width of
+   its own, so once a sibling claimed the free space the party name and deal-point label were
+   squeezed to min-content and wrapped one character per line. A column cannot collapse. */
+.term__drill li { display: flex; flex-direction: column; gap: 6px; color: var(--ink-subtle); }
+
+.drill { padding: var(--pad-sm) 0; border-top: 1px solid var(--hairline); min-width: 0; }
+
+.drill__head {
+  display: flex; justify-content: space-between; gap: var(--pad-md); align-items: baseline;
+  flex-wrap: wrap;
+}
+
+/* the deal-point label is long prose, not a chip: let it wrap as a block rather than force
+   the row wider or, worse, wrap per character */
+.drill__head .term__poslabel { flex: 1 1 14rem; text-align: right; min-width: 0; }
+
+.drill__party { font-size: 12px; color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
+
+/* min_n refusal (#23) — its own visual state. Not an error (nothing is broken) and not an
+   empty result (there IS data; it is too small to show safely). Amber, between the neutral
+   empty state and the red error state, and framed by the accent rather than danger. */
+.state--refusal { border-left: 2px solid var(--accent); background: var(--surface-1); }
+
+.term__display--low_confidence { color: var(--ink-tertiary); font-style: italic; }
+
+/* ---- Label (#29) ------------------------------------------------------------------------- */
+.label { display: flex; flex-direction: column; gap: var(--pad-md); max-width: 42rem; }
+
+.label__progress { font-size: 11px; color: var(--ink-muted); }
+
+.label__item {
+  background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--radius);
+  padding: var(--pad-md); display: flex; flex-direction: column; gap: var(--pad-sm);
+}
+
+.label__meta { font-size: 12px; color: var(--ink-subtle); }
+
+.label__disagree { color: var(--warn); font-weight: 500; }
+
+.label__predictions {
+  display: flex; gap: var(--pad-lg); font-family: var(--font-mono); font-size: 12px;
+}
+
+.label__predictions dt { color: var(--ink-tertiary); }
+
+.label__predictions dd { margin: 0 0 0 4px; display: inline; color: var(--ink); }
+
+.label__edit { display: flex; flex-direction: column; gap: 4px; }
+
+.label__edit label { font-size: 11px; color: var(--ink-muted); }
+
+.label__edit input, .label__edit select {
+  padding: 6px 8px; border: 1px solid var(--hairline-strong); border-radius: var(--radius);
+  background: var(--canvas); color: var(--ink); font: inherit;
+  max-width: 60ch;
+}
+
+/* Only reachable for a deal point with no recorded answers, which the loaded corpus has none
+   of. Says why the control is a text box rather than leaving it looking like the one #57
+   replaced. */
+.label__novocabulary { max-width: 60ch; color: var(--ink-subtle); font-size: 11px; }
+
+/* #52 — four named buttons replace the y/n/e/s keys. Plain neutral buttons: the accent is
+   reserved for focus rings, the brand mark and intentional CTAs, and four equally weighted
+   verdicts are not a CTA. Accept carries a slightly stronger border because it is the one
+   the queue is ranked to make cheap, not because it is the recommended answer. */
+.label__actions { display: flex; flex-wrap: wrap; gap: var(--pad-sm); }
+
+.label__action {
+  padding: 5px 14px; border: 1px solid var(--hairline-strong); border-radius: var(--radius);
+  background: var(--surface-1); color: var(--ink); font: inherit; font-size: 13px;
+  cursor: pointer;
+}
+
+.label__action:hover { background: var(--surface-3); }
+
+.label__action--primary { border-color: var(--ink-tertiary); font-weight: 500; }
+
+.label__actionhint { margin: 0; font-size: 11px; line-height: 1.5; color: var(--ink-tertiary); }
+
+.label__actionhint strong { color: var(--ink-subtle); font-weight: 500; }
+
+.label__edit button { align-self: flex-start; }
+
+/* the verdict on the item just decided — sits above the queue so it survives the advance */
+.label__agreement {
+  margin: 0; padding: var(--pad-sm) var(--pad-md);
+  border-left: 2px solid var(--hairline-strong); background: var(--surface-2);
+  font-size: 12px; line-height: 1.5; color: var(--ink-subtle);
+}
+
+.label__agreement strong { color: var(--ink); font-weight: 500; }
+
+.label__agreement .mono { font-family: var(--font-mono); color: var(--ink); }
+
+/* ---- Label · what the decisions changed (#52) --------------------------------------------
+   The loop's output, at the top of the loop. Quiet panel, no status colour on the figures:
+   the direction is carried by the sentence, and the one colour used is the same amber the
+   thin-cell and bad-number marks use, never green. */
+.label__outcome {
+  display: flex; flex-direction: column; gap: var(--pad-sm);
+  background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--radius);
+  padding: var(--pad-md);
+}
+
+.label__outcometitle { margin: 0; font-size: 13px; font-weight: 500; color: var(--ink); }
+
+.label__outcomelead { margin: 0; font-size: 12px; color: var(--ink-subtle); }
+
+.label__outcomelead .mono { font-family: var(--font-mono); color: var(--ink); }
+
+.label__figures { display: flex; flex-wrap: wrap; gap: var(--pad-lg); margin: 0; }
+
+.label__figure { display: flex; flex-direction: column; gap: 2px; }
+
+.label__figure dt {
+  font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-tertiary);
+}
+
+.label__figure dd {
+  margin: 0; display: flex; align-items: baseline; gap: var(--pad-sm);
+  font-family: var(--font-mono); font-size: 16px; color: var(--ink);
+}
+
+.label__pct { font-size: 11px; color: var(--ink-subtle); }
+
+/* the fall is marked by border and words, not by colour alone — and never by a green arrow */
+.label__direction {
+  margin: 0; padding: var(--pad-sm) var(--pad-md);
+  border-left: 2px solid var(--hairline-strong); background: var(--surface-2);
+  font-size: 12px; line-height: 1.5; color: var(--ink-subtle);
+}
+
+.label__direction strong { color: var(--ink); font-weight: 500; }
+
+/* var(--warn) / var(--warn-bg): the amber already used for thin cells and the bad eval number, so a
+   number that moved the wrong way reads the same way everywhere in the app */
+.label__direction.is-down { border-left-color: var(--warn); background: var(--warn-bg); }
+
+.label__outcomecaveat { margin: 0; font-size: 12px; line-height: 1.55; color: var(--ink-subtle); }
+
+.label__outcomecaveat strong { color: var(--ink); font-weight: 500; }
+
+.label__provenance { margin: 0; font-size: 11px; color: var(--ink-tertiary); }
+
+.label__provenance .mono { font-family: var(--font-mono); }
+
+.label__missing { margin: 0; font-size: 12px; color: var(--ink-subtle); }
+
+/* ---- Admin (#30) ------------------------------------------------------------------------- */
+.admin { display: flex; flex-direction: column; gap: var(--pad-lg); }
+
+.admin__section { display: flex; flex-direction: column; gap: var(--pad-sm); }
+
+.admin__heading { font-size: 13px; font-weight: 500; color: var(--ink); margin: 0; }
+
+.admin__missing { font-size: 12px; color: var(--ink-tertiary); }
+
+/* the caveat and provenance lines under a table: readable prose, not a meta footnote (#41) */
+.admin__note { font-size: 12px; line-height: 1.55; color: var(--ink-muted); margin: 0; max-width: 76ch; }
+
+.admin__note code { font-size: 11px; }
+
+.admin__report {
+  max-height: 320px; overflow: auto; padding: var(--pad-md);
+  background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--radius);
+  font-family: var(--font-mono); font-size: 11px; white-space: pre-wrap; color: var(--ink-subtle);
+}
+
+.admin__table { border-collapse: collapse; width: 100%; font-size: 12px; }
+
+.admin__table th, .admin__table td {
+  padding: 5px 8px; text-align: left; border-bottom: 1px solid var(--hairline);
+}
+
+.admin__table thead th { color: var(--ink-muted); font-weight: 500; background: var(--surface-2); }
+
+.admin__sha { color: var(--ink-tertiary); }
+
+/* #44: the 0.7 gate drawn as a line in the calibration table. Hairline-strong rather than a
+   colour, so the boundary reads as structure and not as an alarm. */
+.admin__gate-row td {
+  background: var(--surface-2); color: var(--ink-muted); font-size: 11px;
+  border-top: 2px solid var(--hairline-strong); border-bottom: 2px solid var(--hairline-strong);
+}
+
+.admin__row--below td:first-child { color: var(--ink-subtle); }
+
+.admin__unmeasured { color: var(--ink-tertiary); font-style: italic; }
+
+.admin__ok { color: var(--success); }
+
+.admin__bad { color: var(--danger); }
+
+.admin__logbar { display: flex; gap: var(--pad-sm); align-items: center; }
+
+.admin__logbar select, .admin__logbar input {
+  padding: 4px 8px; border: 1px solid var(--hairline-strong); border-radius: var(--radius);
+  background: var(--canvas); color: var(--ink); font: inherit; font-size: 12px;
+}
+
+.admin__logcount { margin-left: auto; font-size: 11px; color: var(--ink-muted); }
+
+.admin__logtable { max-height: 260px; overflow-y: auto; display: block; }
+
+.admin__pager { display: flex; gap: var(--pad-md); align-items: center; font-size: 12px; }
+
+.admin__pager button {
+  padding: 3px 10px; border: 1px solid var(--hairline); border-radius: var(--radius);
+  background: transparent; color: var(--ink); font: inherit; cursor: pointer;
+}
+
+.admin__pager button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.explain {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  margin-bottom: var(--pad-lg);
+  max-width: 46rem;
+}
+
+.explain__toggle {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: var(--pad-sm) var(--pad-md);
+  border: 0; border-radius: var(--radius); background: transparent;
+  color: var(--ink-subtle); font: inherit; font-size: 12px; text-align: left; cursor: pointer;
+}
+
+.explain__toggle:hover { color: var(--ink); }
+
+.explain__chevron { font-size: 9px; color: var(--ink-tertiary); }
+
+.explain__body { padding: 0 var(--pad-md) var(--pad-md); }
+
+.explain__prose { font-size: 13px; line-height: 1.55; color: var(--ink-muted); max-width: 40rem; }
+
+.explain__prose p { margin: 0 0 var(--pad-sm); }
+
+.explain__prose p:last-child { margin-bottom: 0; }
+
+.explain__prose strong { color: var(--ink); font-weight: 500; }
+
+.explain__prose code {
+  font-family: var(--font-mono); font-size: 11px;
+  background: var(--surface-2); border: 1px solid var(--hairline);
+  border-radius: 3px; padding: 0 3px;
+}
+
+.explain__diagram { margin-bottom: var(--pad-md); overflow-x: auto; }
+
+/* Diagrams are token-only so they cannot drift from the palette, and they scale with the
+   panel rather than pretending to a fixed pixel size. */
+.loop { width: 100%; max-width: 600px; height: auto; display: block; }
+
+.loop__edges path { fill: none; stroke: var(--hairline-strong); stroke-width: 1; }
+
+.loop__node rect { fill: var(--surface-2); stroke: var(--hairline); stroke-width: 1; }
+
+.loop__label text {
+  fill: var(--ink); font-family: var(--font-sans); font-size: 11px; text-anchor: middle;
+}
+
+.loop__sub text {
+  fill: var(--ink-subtle); font-family: var(--font-mono); font-size: 9px; text-anchor: middle;
+}
+
+.loop__note {
+  fill: var(--ink-tertiary); font-family: var(--font-sans); font-size: 9px;
+  font-style: italic; text-anchor: middle;
+}
+
+/* the per-card ranking rationale */
+.label__why {
+  margin: var(--pad-sm) 0 0;
+  padding-left: var(--pad-sm);
+  border-left: 2px solid var(--hairline);
+  font-size: 12px; line-height: 1.5; color: var(--ink-subtle);
+}
+
+.label__why strong { color: var(--ink); font-weight: 500; }
+
+.label__why .mono { font-family: var(--font-mono); color: var(--ink); }
+
+.sem__pane {
+  border: 1px solid var(--hairline); border-radius: var(--radius);
+  background: var(--surface-1); padding: var(--pad-md);
+}
+
+.sem__h { margin: 0 0 4px; font-size: 14px; font-weight: 500; color: var(--ink); }
+
+.sem__h4 .mono { font-family: var(--font-mono); color: var(--ink-tertiary); }
+
+.sem__sub {
+  margin: 0 0 var(--pad-md); font-size: 12px; line-height: 1.55;
+  color: var(--ink-subtle); max-width: 46rem;
+}
+
+.sem__sub strong { color: var(--ink); font-weight: 500; }
+
+.sem__sub .mono { font-family: var(--font-mono); color: var(--ink); }
+
+/* the routing diagram's freeform lane terminates in a dead end; mark it without colour,
+   because colour alone is not an accessible distinction */
+.loop__node--out rect { fill: var(--surface-3); stroke-dasharray: 3 2; }
+
+.loop__lane {
+  fill: var(--ink-tertiary); font-family: var(--font-sans); font-size: 9px;
+  text-anchor: start; font-style: italic;
+}
+
+.qb__run {
+  padding: 6px 12px; border: 1px solid var(--accent); border-radius: var(--radius);
+  background: var(--accent); color: var(--surface-1); font: inherit; font-size: 12px; cursor: pointer;
+}
+
+.qb__run:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+.qb__run:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.qb__hint { margin: var(--pad-sm) 0 0; font-size: 11px; line-height: 1.5; color: var(--ink-tertiary); }
+
+.qb__n { margin: 0 0 var(--pad-sm); font-size: 12px; color: var(--ink-subtle); }
+
+.qb__n .mono { font-family: var(--font-mono); color: var(--ink); font-weight: 600; }
+
+/* refusal and rejection are visually distinct from each other AND from an empty result:
+   one is "the slice is too thin", the other is "that name does not exist" */
+.qb__refused, .qb__rejected {
+  padding: var(--pad-sm) var(--pad-md); border-radius: var(--radius); font-size: 12px;
+  line-height: 1.5;
+}
+
+.qb__refused { border: 1px solid var(--warn); background: var(--warn-bg); color: var(--warn-ink); }
+
+.qb__rejected { border: 1px solid var(--danger); background: var(--danger-bg); color: var(--danger-ink); }
+
+.qb__refused strong, .qb__rejected strong { display: block; margin-bottom: 2px; }
+
+.qb__refused p, .qb__rejected p { margin: 0 0 4px; }
+
+.qb__note .mono { font-family: var(--font-mono); color: var(--ink); }
+
+/* the disabled Run button needs a reason beside it, not a whisper */
+.qb__blocked {
+  margin: var(--pad-sm) 0 0; padding: var(--pad-sm) var(--pad-md);
+  border-left: 2px solid var(--hairline-strong); background: var(--surface-2);
+  font-size: 12px; line-height: 1.5; color: var(--ink-subtle);
+}
+
+.qb__blocked strong { color: var(--ink); font-weight: 500; }
+
+/* #34 — the rail was all numbers and no meaning */
+.facet__title > span:first-child { display: inline-flex; align-items: baseline; gap: 5px; }
+
+.facet__inferred {
+  font-size: 9px; letter-spacing: 0.04em; text-transform: none;
+  color: var(--warn-ink); background: var(--warn-bg);
+  border: 1px solid var(--warn-border); border-radius: 3px; padding: 0 3px;
+}
+
+.facet__n { font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
+
+/* an absence bucket states its cause; "unclassified · 3" otherwise reads as a bug */
+.facet__reason {
+  margin: 2px 0 4px var(--pad-sm);
+  padding-left: var(--pad-sm);
+  border-left: 2px solid var(--hairline);
+  font-size: 10px; line-height: 1.45; color: var(--ink-tertiary);
+}
+
+/* inline glossary (#35) — a reader should never leave the screen to learn a word */
+.term { position: relative; }
+
+.term__btn {
+  border: 0; background: none; padding: 0; font: inherit; cursor: help;
+  color: inherit; border-bottom: 1px dotted var(--hairline-strong);
+}
+
+.term__btn:hover { border-bottom-color: var(--accent); color: var(--ink); }
+
+.term__btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.term__def {
+  display: block; margin: 4px 0; padding: var(--pad-sm) var(--pad-md);
+  border-left: 2px solid var(--accent); background: var(--surface-2);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 12px; line-height: 1.55; color: var(--ink-muted);
+}
+
+.term__def strong { color: var(--ink); font-weight: 500; }
+
+/* the offline grade (#36) */
+.grade__tiles { display: flex; gap: var(--pad-md); flex-wrap: wrap; margin-bottom: var(--pad-md); }
+
+.grade__tile {
+  display: flex; flex-direction: column; gap: 2px; padding: var(--pad-sm) var(--pad-md);
+  border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface-2);
+  min-width: 14rem;
+}
+
+/* the bad number is marked by border and label, not colour alone */
+.grade__tile.is-bad { border-color: var(--warn); background: var(--warn-bg); }
+
+.grade__num { font-family: var(--font-mono); font-size: 18px; color: var(--ink); }
+
+.grade__lbl { font-size: 11px; line-height: 1.4; color: var(--ink-subtle); }
+
+.scrollx { overflow-x: auto; }
+
+.grade__table { font-size: 11px; }
+
+.grade__table td { vertical-align: top; }
+
+.grade__row--bad td:first-child { box-shadow: inset 2px 0 0 var(--danger); }
+
+.grade__tag {
+  margin-left: 6px; font-family: var(--font-mono); font-size: 9px;
+  border: 1px solid var(--hairline-strong); border-radius: 3px; padding: 0 3px;
+  color: var(--ink-tertiary);
+}
+
+.grade__dims { display: block; font-size: 9px; color: var(--ink-tertiary); }
+
+/* ── tab groups ──────────────────────────────────────────────────────────────────────
+   Eight equal tabs read as a feature list and hide which ones an analyst would open.
+   The first four are the product; the rest are the evidence, set quieter behind a label. */
+.shell__tabslot { display: inline-flex; align-items: center; }
+
+.shell__tabgroup {
+  margin: 0 10px 0 6px;
+  padding-left: 10px;
+  border-left: 1px solid var(--hairline);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-tertiary);
+  white-space: nowrap;
+}
+
+.shell__tab--under-the-hood { color: var(--ink-tertiary); }
+
+.shell__tab--under-the-hood:hover { color: var(--ink-subtle); }
+
+.shell__tab--under-the-hood.is-active { color: var(--ink); }
+
+/* Ask opens by saying what you do here, and where to go instead if you wanted Explore. */
+.sem__pointer {
+  margin: 0 0 var(--pad-md);
+  font-size: 13px;
+  color: var(--ink-subtle);
+}
+
+/* A MAUD span wider than a clause is where the answer was found, not the language. */
+.dp__excerptnote {
+  margin: 0 0 6px;
+  padding-left: 8px;
+  border-left: 2px solid var(--hairline-strong);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-tertiary);
+}
+
+.dp__clause--excerpt { max-height: 12em; overflow: auto; }
+
+.drill__text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+/* #47 — ask in words, confirm the reading, then run.
+   The chips are the confirmation step made visible, so they are sized to be read and edited
+   rather than to be compact: a row of tight tokens is a summary, and a summary is exactly
+   what a reader would skim past on the one screen where skimming is the failure. */
+.ask__row { display: flex; gap: var(--pad-sm); margin-bottom: var(--pad-md); }
+
+.ask__input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+.ask__input::placeholder { color: var(--ink-tertiary); }
+
+.ask__chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: var(--pad-md); }
+
+.ask__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 8px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 12px;
+}
+
+/* An unresolved value is a designed state, not an error: dashed rather than coloured, because
+   the corpus not carrying a name is a fact about the corpus, not a fault. */
+.ask__chip.is-unresolved { border-style: dashed; border-color: var(--hairline-strong); }
+
+.ask__chiprole {
+  color: var(--ink-tertiary);
+  font-size: 11px;
+  text-transform: lowercase;
+}
+
+.ask__chipname {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: help;
+}
+
+.ask__chipname:hover { text-decoration: underline dotted; }
+
+/* The qualified name stays visible under the title — it is what gets sent, and a reviewer
+   checking a selection against the catalog needs it. Quiet, so the readable name leads. */
+.ask__chipqual { color: var(--ink-tertiary); font-size: 11px; font-weight: 400; }
+
+/* Full width so the description wraps under the chip's controls rather than stretching the
+   chip row into one very long line. */
+.ask__chipdesc {
+  flex-basis: 100%;
+  max-width: 62ch;
+  padding-top: 2px;
+  color: var(--ink-subtle);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.ask__chipcoverage { color: var(--ink-tertiary); }
+
+.ask__chip { flex-wrap: wrap; }
+
+/* A member the corpus cannot answer with. Same hairline vocabulary as the refusal panel it is
+   explained in, and never colour alone — the panel above names every one of these in words. */
+.ask__chip.is-unanswerable {
+  border-style: dashed;
+  border-color: var(--hairline-strong);
+  background: var(--surface-3);
+}
+
+.ask__cannotlist { margin: 0 0 6px; padding-left: 18px; }
+
+.ask__cannotlist li { margin-bottom: 2px; }
+
+.ask__chipedit {
+  min-width: 12ch;
+  /* Deal point names run to 60+ characters. At 28ch the value clipped mid-word under the
+     select's own arrow, so the chip claimed a filter the reader could not finish reading. */
+  max-width: 44ch;
+  text-overflow: ellipsis;
+  padding: 2px 20px 2px 4px;
+  border: 1px solid transparent;
+  border-bottom-color: var(--hairline-strong);
+  border-radius: 3px;
+  background: var(--surface-1);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.ask__chipedit:hover { border-color: var(--hairline-strong); }
+
+.ask__method { color: var(--ink-tertiary); font-family: var(--font-mono); font-size: 11px; }
+
+.ask__method--unresolved { color: var(--ink-subtle); font-weight: 600; }
+
+.ask__near { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+
+.ask__nearbtn {
+  padding: 1px 5px;
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  background: var(--surface-1);
+  color: var(--ink-subtle);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.ask__nearbtn:hover { background: var(--surface-3); color: var(--ink); }
+
+.ask__x {
+  padding: 0 3px;
+  border: 0;
+  background: none;
+  color: var(--ink-tertiary);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ask__x:hover { color: var(--ink); }
+
+.ask__confirm { display: flex; align-items: center; gap: var(--pad-md); flex-wrap: wrap; }
+
+/* #50 — what the question cost. Quiet by design: it is evidence a reader can check, not a
+   headline, so it sits at the tertiary ink floor and never competes with the chips. */
+.ask__usage {
+  margin: 0 0 var(--pad-sm);
+  font-size: 11px;
+  color: var(--ink-tertiary);
+}
+
+.ask__priced { color: var(--ink-tertiary); }
+
+.ask__session {
+  margin: var(--pad-lg) 0 0;
+  padding-top: var(--pad-sm);
+  border-top: 1px solid var(--hairline);
+  font-size: 11px;
+  color: var(--ink-tertiary);
+}
+
+/* #54 — Trust's charts.
+   ---------------------------------------------------------------------------------------
+   The series colours are the ONLY hardcoded hex in a component surface, and they are here
+   rather than in tokens.css deliberately: tokens.css is the app's GitHub Primer palette and
+   these are a validated categorical set from a different system, chosen by the data-viz
+   procedure rather than by the design system. Keeping them scoped to `.viz` means a chart
+   colour can never leak into the chrome.
+
+   Validated with `node scripts/validate_palette.js`, not eyeballed:
+     light  "#2a78d6,#eb6834" on #ffffff → all six checks PASS,
+            worst adjacent CVD ΔE 24.7 (protan), normal-vision 33.6
+     dark   "#3987e5,#d95926" on #1a1a19 → all six checks PASS,
+            worst adjacent CVD ΔE 26.8 (protan), normal-vision 31.8
+
+   Dark values are declared under BOTH the media query and the data-theme scope, so the OS
+   setting and an explicit toggle each win in the right direction. The app itself ships light
+   only (CLAUDE.md: do not restore the dark palette) — this is the chart layer keeping its own
+   contract so it stays correct if the app ever gains a toggle. */
+.viz {
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --viz-surface: var(--surface-1);
+  margin-bottom: var(--pad-lg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .viz {
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --viz-surface: #1a1a19;
+  }
+}
+
+:root[data-theme='dark'] .viz {
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --viz-surface: #1a1a19;
+}
+
+.viz__head { display: flex; align-items: baseline; gap: var(--pad-md); }
+
+.viz__title { margin: 0 0 var(--pad-sm); font-size: 13px; font-weight: 600; color: var(--ink); }
+
+.viz__toggle {
+  padding: 2px 8px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  color: var(--ink-subtle);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.viz__toggle:hover { background: var(--surface-3); color: var(--ink); }
+
+.viz__note {
+  margin: 0 0 var(--pad-md);
+  max-width: 78ch;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-subtle);
+}
+
+.viz__scroll { overflow-x: auto; overflow-y: visible; }
+
+.viz__svg { display: block; max-width: 100%; height: auto; }
+
+/* Marks. Thin, one hue, 4px rounded data-end — the path does the rounding so the square
+   baseline end stays square. */
+.viz__bar { fill: var(--series-1); }
+
+.viz__row:hover .viz__bar { fill: var(--series-1); filter: brightness(0.92); }
+
+.viz__row:hover .viz__cat { fill: var(--ink); }
+
+/* Axes and the gate rule: solid hairlines, one step off the surface. Never dashed — a dashed
+   rule reads as "projection" when it is a threshold. The rule is 2px and carries a direct
+   label; it is a line, not a colour change. */
+.viz__axis { stroke: var(--hairline); }
+
+.viz__rule { stroke: var(--ink-tertiary); }
+
+.viz__rulelbl { fill: var(--ink-subtle); font-size: 10px; font-family: var(--font-mono); }
+
+/* Text wears ink tokens, never a series colour. */
+.viz__cat { fill: var(--ink-subtle); font-size: 10px; }
+
+.viz__value { fill: var(--ink-subtle); font-size: 10px; font-family: var(--font-mono); }
+
+.viz__unmeasured { fill: var(--ink-tertiary); font-size: 10px; font-style: italic; }
+
+/* the one exception: a label inside a filled segment, painted to clear the fill */
+.viz__seglbl { fill: #ffffff; font-size: 11px; font-family: var(--font-mono); font-weight: 600; }
+
+.viz__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pad-md);
+  margin: var(--pad-sm) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  color: var(--ink-subtle);
+}
+
+.viz__legend li { display: flex; align-items: center; gap: 6px; }
+
+.viz__swatch { width: 10px; height: 10px; border-radius: 2px; }
+
+/* Cost is a stat-tile row, not a chart: four unrelated magnitudes have no shared scale. */
+.viz__tiles { display: flex; flex-wrap: wrap; gap: var(--pad-md); }
+
+.viz__tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+  padding: var(--pad-md);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+}
+
+.viz__tilelbl { font-size: 11px; color: var(--ink-tertiary); }
+
+/* proportional figures, not tabular: equal-width digits make a big number look loose */
+.viz__tileval { font-size: 20px; font-weight: 600; color: var(--ink); }
+
+.viz__tilesub { font-size: 10px; color: var(--ink-tertiary); }
+
+.trust__section { margin-bottom: var(--pad-lg); }
+
+.trust__operator { padding-top: var(--pad-md); border-top: 1px solid var(--hairline); }
+
+/* The disagreement chart's zero state (#57 pass). A stacked bar over a total of zero draws
+   nothing, so the buckets are listed instead — the shape of the measurement, with nothing
+   measured into it yet. */
+.trust__buckets {
+  margin: 0; padding-left: 18px;
+  color: var(--ink-subtle); font-size: 12px; line-height: 1.7;
+}
+
+.trust__buckets .mono { color: var(--ink); }
+
+/* Trust's missing-artefact list. Same hairline vocabulary as every other designed state; the
+   API's own sentence carries the command, so this only has to stay readable. */
+.trust__missing { margin: var(--pad-sm) 0 0; font-size: 12px; }
+
+.trust__missing div { margin-bottom: var(--pad-sm); }
+
+.trust__missing dt { color: var(--ink); font-weight: 500; }
+
+.trust__missing dd { margin: 2px 0 0; color: var(--ink-subtle); line-height: 1.5; }
+
+/* The statistical argument sits below the chart it qualifies, folded away. A caption that has to
+   explain a Wilson bound mid-sentence is defending the chart rather than labelling it. */
+.viz__footnote { margin-top: var(--pad-sm); font-size: 12px; color: var(--ink-subtle); }
+
+.viz__footnote summary { cursor: pointer; color: var(--ink-tertiary); }
+
+.viz__footnote summary:hover { color: var(--ink-subtle); }
+
+.viz__footnote p { margin: 6px 0 0; line-height: 1.55; max-width: 52rem; }
+
+/* A card used to render every clause at once: 89 deal points and 221,045 characters on one
+   matter, so the answer a reader came for sat inside a fifth of a megabyte of contract prose.
+   The answer is the finding and stays; the clause is its evidence and opens on request. */
+.dp__toggle {
+  margin: 4px 0 0; padding: 2px 0; border: 0; background: none;
+  font: inherit; font-size: 11px; color: var(--accent); cursor: pointer;
+}
+
+.dp__toggle:hover { color: var(--accent-hover); text-decoration: underline; }
+
+/* The deal point that answers the filter the reader applied. Filtering to All Cash and then not
+   showing the consideration clause is the product failing its own claim. */
+.dp--evidence {
+  border-left: 2px solid var(--accent);
+  padding-left: var(--pad-sm);
+  background: linear-gradient(90deg, rgba(9, 105, 218, 0.05), transparent);
+}
+
+.dp__evidence {
+  margin: 0 0 2px; font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* A recorded decision is not a graded decision: calibration reads the labels table on its next
+   run, so the reviewer is told the score has not moved yet rather than left to wonder. */
+.label__pending { color: var(--accent); }
+
+/* Explore · the rank-by control (hybrid retrieval, made visible).
+   Sits under the search box because it modifies that query and nothing else. Hidden until
+   there is a description, since ranking without one is by matter id. */
+.rank {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 2px;
+}
+
+.rank__label {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+}
+
+.rank__group {
+  display: inline-flex;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.rank__btn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink-secondary);
+  background: var(--surface-1);
+  border: 0;
+  border-right: 1px solid var(--border-default);
+  cursor: pointer;
+}
+
+.rank__btn:last-child {
+  border-right: 0;
+}
+
+.rank__btn:hover {
+  background: var(--surface-2);
+}
+
+.rank__btn--on {
+  background: var(--surface-3);
+  color: var(--ink-primary);
+  font-weight: 600;
+}
+
+.rank__alpha {
+  font-size: 11px;
+  color: var(--ink-tertiary);
+}
+
+.rank__why {
+  flex: 1 1 240px;
+  min-width: 0;
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-tertiary);
+}
+
+/* A suppressed-cell notice. Amber rather than red: the answer is usable, part of the
+   distribution is withheld. Sits ABOVE the rows, because a reader who reaches the numbers
+   first has already formed the wrong impression of what they are looking at. */
+.qb__suppressed {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #6a4a00;
+  background: #fffaf0;
+  border: 1px solid #e6d8b5;
+  border-radius: var(--radius);
+}
+
+/* ── Mechanism tone ────────────────────────────────────────────────────────────────────
+   The rank control is where the two halves of retrieval are named, so it is where the
+   colours are taught. Hybrid is a gradient between the other two because that is what it
+   is: a weighted blend, not a third algorithm. Colour is carried on a 2px underline and the
+   text, never a fill — the results list below must stay the quiet reading surface it is. */
+.rank__btn { border-bottom: 2px solid transparent; }
+
+.rank__btn--exact.rank__btn--on   { color: var(--mech-exact);   border-bottom-color: var(--mech-exact); }
+
+.rank__btn--meaning.rank__btn--on { color: var(--mech-meaning); border-bottom-color: var(--mech-meaning); }
+
+.rank__btn--hybrid.rank__btn--on  { color: var(--ink); border-bottom-color: transparent;
+  border-image: linear-gradient(90deg, var(--mech-exact), var(--mech-meaning)) 1;
+  border-bottom-style: solid; }
+
+/* The three scores on an expanded card, each in the colour of the half that produced it.
+   `hybrid` stays ink: it is the blend, and giving it a hue of its own would imply a third
+   independent signal. */
+.card__scores dt:nth-of-type(2) { color: var(--mech-meaning); }
+
+.card__scores dt:nth-of-type(3) { color: var(--mech-exact); }
+
+/* Governed: every figure Cube computed. A hairline on the left of the panel, nothing more —
+   the number itself is never coloured, because a coloured number reads as a status. */
+.terms__caption { border-left: 2px solid var(--mech-governed); padding-left: 8px; }
+
+/* Ask answers (2026-09-06). The rows were `JSON.stringify(result.rows)` — auditable and a dead
+   end. Each row is a group of records that gave the same answer, and the reader's next question
+   is always which ones, so a row opens into them. Styled to sit quietly under the chips: the
+   confirmation step above is what the panel is arguing, not this. */
+.ask__answers { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--hairline); }
+
+.ask__answer { border-bottom: 1px solid var(--hairline); }
+
+.ask__answerhead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--pad-sm);
+  padding: 6px 0;
+}
+
+.ask__answername { flex: 1; min-width: 0; color: var(--ink); }
+
+.ask__answerfigs { display: inline-flex; gap: var(--pad-sm); color: var(--ink); font-weight: 600; }
+
+.ask__drillbtn {
+  padding: 1px 6px;
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  background: var(--surface-1);
+  color: var(--ink-subtle);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ask__drillbtn:hover { background: var(--surface-3); color: var(--ink); }
+
+.ask__drill { padding: 0 0 var(--pad-sm) var(--pad-md); }
+
+.ask__drill ul { list-style: none; margin: 0; padding: 0; }

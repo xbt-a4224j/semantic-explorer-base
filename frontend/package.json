@@ -7,7 +7,10 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./tokens.css": "./src/styles/tokens.css"
+    "./tokens.css": "./src/styles/tokens.css",
+    "./styles/tokens.css": "./src/styles/tokens.css",
+    "./styles/components.css": "./src/styles/components.css",
+    "./styles/platform.css": "./src/styles/platform.css"
   },
   "files": ["src"],
   "peerDependencies": {
