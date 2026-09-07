@@ -45,6 +45,16 @@ export interface ShellSearch {
 export interface ShellProps {
   brand: string
   strings: QuorumStrings
+  /**
+   * Tabs to leave out of the bar entirely. Opt-in; omitting it renders all six, as before.
+   *
+   * Two real reasons a domain needs this, both found by the second domain (claims-explorer#13):
+   * a tab whose whole premise does not exist for the corpus (Label needs extractor disagreement;
+   * a corpus with no extractor has nothing to rank), and a tab that is only ever empty until the
+   * user has done something elsewhere (Findings before any selection). A "not applicable" panel
+   * was the workaround, and a tab that opens on an apology is worse than no tab.
+   */
+  hiddenTabs?: readonly TabId[]
   activeId: TabId
   onSelect: (id: TabId) => void
   /** Omit entirely on a tab that has its own search, the way Explore does today. */
@@ -54,7 +64,8 @@ export interface ShellProps {
   children: ReactNode
 }
 
-export function Shell({ brand, strings, activeId, onSelect, search, status, children }: ShellProps) {
+export function Shell({ brand, strings, activeId, onSelect, search, status, children , hiddenTabs = [] }: ShellProps) {
+  const visibleTabs = TAB_IDS.filter((id) => !hiddenTabs.includes(id))
   const activeMeta = strings.tabs[activeId]
 
   return (
@@ -63,9 +74,9 @@ export function Shell({ brand, strings, activeId, onSelect, search, status, chil
         <div className="shell__brand">{brand}</div>
 
         <nav className="shell__tabs" role="tablist" aria-label="views">
-          {TAB_IDS.map((id, i) => {
+          {visibleTabs.map((id, i) => {
             const group = EVIDENCE_TAB_IDS.has(id) ? 'under-the-hood' : 'work'
-            const prevGroup = i > 0 && EVIDENCE_TAB_IDS.has(TAB_IDS[i - 1]!) ? 'under-the-hood' : 'work'
+            const prevGroup = i > 0 && EVIDENCE_TAB_IDS.has(visibleTabs[i - 1]!) ? 'under-the-hood' : 'work'
             return (
               <span key={id} className="shell__tabslot">
                 {group === 'under-the-hood' && prevGroup === 'work' && (
