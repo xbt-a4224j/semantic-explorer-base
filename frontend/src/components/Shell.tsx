@@ -1,22 +1,25 @@
-import { Fragment, useCallback, useMemo, useState } from 'react'
-import type { MutableRefObject, ReactNode } from 'react'
+import { Fragment } from 'react'
+import type { ReactNode, MutableRefObject } from 'react'
 import { EVIDENCE_TAB_IDS, TAB_IDS } from '../strings'
 import type { QuorumStrings, TabId } from '../strings'
-import { useKeyboard } from '../useKeyboard'
 
 /**
- * The app frame: brand, tab bar, search slot, main panel, status strip, keyboard shortcuts.
+ * The app frame: brand, tab bar, search slot, main panel, status strip.
  *
- * Extracted from clause-explorer's `App.tsx`, which held this markup, its CSS (`shell__*`,
- * ~230 of shell.css's 1,401 lines) and the number-key-is-the-tab-index binding as domain code —
- * even though none of it named a legal thing. A second domain following the specs to the
- * letter would have reached a correct, unstyled, tab-less app, because nothing shipped this.
+ * Extracted from clause-explorer's `App.tsx`, which held this markup and its CSS (`shell__*`,
+ * ~230 of shell.css's 1,401 lines) as domain code even though none of it named a legal thing. A
+ * second domain following the specs to the letter would have reached a correct, unstyled,
+ * tab-less app, because nothing shipped this.
+ *
+ * No keyboard shortcuts. An earlier version bound number keys to tab index and `/`/`?`/Escape
+ * to search-focus and a help overlay; dropped as unwanted scope rather than kept as an unused
+ * feature nobody asked for.
  *
  * What stays with the domain: which component renders for the active tab (`children`, computed
  * by the caller — Shell does not know Explore from Overview), the search box's placeholder and
- * what submitting it does (typing "/" and hitting Enter might search Explore in one domain and
- * something else entirely in another), and the status strip's actual health check (Shell
- * renders whatever `status` it is given; it does not assume an endpoint or a response shape).
+ * what submitting it does (Enter might search Explore in one domain and something else entirely
+ * in another), and the status strip's actual health check (Shell renders whatever `status` it
+ * is given; it does not assume an endpoint or a response shape).
  */
 
 export interface ShellStatus {
@@ -47,42 +50,11 @@ export interface ShellProps {
   /** Omit entirely on a tab that has its own search, the way Explore does today. */
   search?: ShellSearch
   status?: ShellStatus | null
-  /** [key, description] — content is the domain's; "j / k move through results" describes
-   *  Explore, not the shell. */
-  shortcuts: ReadonlyArray<readonly [string, string]>
   /** The panel for the active tab. Shell renders it; it does not choose it. */
   children: ReactNode
 }
 
-export function Shell({
-  brand,
-  strings,
-  activeId,
-  onSelect,
-  search,
-  status,
-  shortcuts,
-  children,
-}: ShellProps) {
-  const [showHelp, setShowHelp] = useState(false)
-
-  const focusSearch = useCallback(() => search?.inputRef?.current?.focus(), [search])
-
-  const handlers = useMemo(() => {
-    const map: Record<string, () => void> = {
-      '?': () => setShowHelp(true),
-      Escape: () => setShowHelp(false),
-    }
-    if (search) map['/'] = focusSearch
-    // Number keys map to tab index — TAB_IDS's order is load-bearing for this reason.
-    TAB_IDS.forEach((id, i) => {
-      map[String(i + 1)] = () => onSelect(id)
-    })
-    return map
-  }, [focusSearch, onSelect, search])
-
-  useKeyboard(handlers)
-
+export function Shell({ brand, strings, activeId, onSelect, search, status, children }: ShellProps) {
   const activeMeta = strings.tabs[activeId]
 
   return (
@@ -110,9 +82,6 @@ export function Shell({
                   onClick={() => onSelect(id)}
                 >
                   {strings.tabs[id].label}
-                  <span className="shell__tabkey" aria-hidden="true">
-                    {i + 1}
-                  </span>
                 </button>
               </span>
             )
@@ -155,38 +124,7 @@ export function Shell({
             ))}
           </>
         )}
-        <span className="shell__spacer" />
-        <button type="button" className="shell__helpbtn" onClick={() => setShowHelp(true)}>
-          ? shortcuts
-        </button>
       </footer>
-
-      {showHelp && (
-        <div className="shell__scrim" onClick={() => setShowHelp(false)}>
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Keyboard shortcuts"
-            className="shell__dialog"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="shell__dialogtitle">Keyboard shortcuts</h2>
-            <dl className="shell__keys">
-              {shortcuts.map(([key, what]) => (
-                <div key={key} className="shell__keyrow">
-                  <dt>
-                    <kbd>{key}</kbd>
-                  </dt>
-                  <dd>{what}</dd>
-                </div>
-              ))}
-            </dl>
-            <button type="button" className="shell__close" onClick={() => setShowHelp(false)}>
-              close
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

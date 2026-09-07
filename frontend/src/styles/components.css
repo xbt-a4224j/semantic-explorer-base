@@ -65,17 +65,6 @@
   background: var(--accent);
 }
 
-/* the number-key affordance — discoverable without opening the help overlay */
-.shell__tabkey {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--ink-tertiary);
-  border: 1px solid var(--hairline-strong);
-  border-radius: 3px;
-  padding: 0 3px;
-  line-height: 14px;
-}
-
 .shell__search {
   margin-left: auto;
   width: 260px;
@@ -134,52 +123,6 @@
 .shell__dot--bad { background: var(--danger); }
 
 .shell__sep { color: var(--ink-tertiary); }
-
-.shell__spacer { flex: 1; }
-
-.shell__helpbtn {
-  border: 0; background: transparent; color: var(--ink-subtle);
-  font: inherit; cursor: pointer; padding: 2px 4px; border-radius: 3px;
-}
-
-.shell__helpbtn:hover { color: var(--ink); }
-
-/* ---- shortcut overlay ---- */
-.shell__scrim {
-  position: fixed; inset: 0;
-  background: var(--scrim);
-  display: grid; place-items: center;
-}
-
-.shell__dialog {
-  min-width: 340px;
-  padding: var(--pad-lg);
-  border: 1px solid var(--hairline-strong);
-  border-radius: 10px;
-  background: var(--surface-1);
-}
-
-.shell__dialogtitle { margin: 0 0 var(--pad-md); font-size: 14px; font-weight: 500; }
-
-.shell__keys { margin: 0; display: grid; gap: 6px; }
-
-.shell__keyrow { display: grid; grid-template-columns: 88px 1fr; align-items: center; }
-
-.shell__keyrow dd { margin: 0; color: var(--ink-subtle); font-size: 13px; }
-
-kbd {
-  font-family: var(--font-mono); font-size: 11px;
-  border: 1px solid var(--hairline-strong); border-radius: 3px;
-  padding: 1px 5px; color: var(--ink-muted); background: var(--surface-3);
-}
-
-.shell__close {
-  margin-top: var(--pad-lg); width: 100%;
-  padding: 6px; border: 1px solid var(--hairline-strong); border-radius: var(--radius);
-  background: transparent; color: var(--ink-subtle); font: inherit; cursor: pointer;
-}
-
-.shell__close:hover { color: var(--ink); border-color: var(--accent); }
 
 .explore { display: flex; flex-direction: column; gap: var(--pad-md); min-height: 0; }
 

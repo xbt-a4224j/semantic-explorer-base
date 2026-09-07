@@ -59,10 +59,9 @@ predecessor threw rather than returned a placeholder.
 
 `TAB_IDS` — `overview`, `ask`, `explore`, `terms`, `trust`, `label` — are the platform's fixed
 vocabulary and never renamed. `terms` used to be `deal-terms` in an earlier version, and that id
-shipped into a second domain's fork and stayed there for months: an id lives in URLs, tests, and
-keyboard bindings, so it outlives the label somebody meant to rename. Only the **label** is this
-domain's word — `terms` can read "Deal Terms" in one domain and "Findings" in another, same id
-underneath.
+shipped into a second domain's fork and stayed there for months: an id lives in URLs and tests,
+so it outlives the label somebody meant to rename. Only the **label** is this domain's word —
+`terms` can read "Deal Terms" in one domain and "Findings" in another, same id underneath.
 
 ## Two kinds of full-sentence slots, and why they're sentences and not words
 

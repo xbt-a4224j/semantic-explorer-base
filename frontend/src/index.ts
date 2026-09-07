@@ -43,7 +43,6 @@ export { Term } from './components/Term'
 export { ExplainerPanel } from './components/ExplainerPanel'
 export { formatLatency, formatTokens, formatUsd } from './components/usage'
 export { ignoreAbort, isAbortError, useAbortOnUnmount } from './components/abort'
-export { useKeyboard } from './useKeyboard'
 
 // ── charts and diagrams ──────────────────────────────────────────────────────────────────
 export { BarChart, ChartFrame, Legend, StackedBar, StatTiles } from './components/charts'
