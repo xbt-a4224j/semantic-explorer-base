@@ -77,6 +77,18 @@ export interface QuorumStrings {
   readonly exampleQuestion: string
 
   /**
+   * Explore's search placeholder. Optional; defaults to naming the record.
+   *
+   * A placeholder is a promise about what the search DOES, and the hardcoded one made a promise
+   * only the reference corpus could keep: "Describe the deal in front of you…" invites a
+   * sentence, which is right for hybrid retrieval over document prose and wrong for a corpus
+   * whose search is a keyword match over structured fields. The second domain rendered it
+   * verbatim, in an app with no deals and no prose, and it made the search feel broken when it
+   * was working exactly as designed.
+   */
+  readonly searchPlaceholder?: string
+
+  /**
    * This corpus's terms of art, with their definitions. Rendered by `Term` on hover.
    *
    * Here rather than in the platform because a shared glossary is either wrong for every other

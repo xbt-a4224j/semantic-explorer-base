@@ -70,14 +70,14 @@ export function Rollup({
   if (selection.length === 0) {
     return (
       <div className="state state--empty">
-      <ExplainerPanel id="terms" title="What this tab is for: what was negotiated" diagram={diagram} defaultOpen={false}>
+      <ExplainerPanel id="terms" title={`What this tab is for: ${strings.tabs.terms.hint}`} diagram={diagram} defaultOpen={false}>
         {explainer}
       </ExplainerPanel>
-        <h3 className="state__title">No deals selected</h3>
+        <h3 className="state__title">No {strings.colloquial} selected</h3>
         <p className="state__body">
-          Select deals in Explore and this rolls up what was negotiated across them. Nothing is
-          rolled up over the whole corpus by default — a set you did not choose is not a
-          comparable set.
+          Select {strings.colloquial} in Explore and this rolls up {strings.tabs.terms.hint}.
+          Nothing is rolled up over the whole corpus by default — a set you did not choose is
+          not a comparable set.
         </p>
       </div>
     )
@@ -99,7 +99,7 @@ export function Rollup({
       )}
 
       {!error && !data && (
-        <div className="terms__skeleton" aria-label="loading deal terms">
+        <div className="terms__skeleton" aria-label={`loading ${strings.tabs.terms.label.toLowerCase()}`}>
           {Array.from({ length: 8 }, (_, i) => (
             <div key={i} className="skeleton skeleton--row" />
           ))}
@@ -125,7 +125,7 @@ export function Rollup({
         <>
           <p className="terms__caption">
             {data.answered_subject_count} {strings.subjects} answered across{' '}
-            <span className="mono">n={data.selection_n}</span> agreements ·{' '}
+            <span className="mono">n={data.selection_n}</span> {strings.records} ·{' '}
             {data.absent_subject_count} not answered by any of them · counts rather than
             percentages below n={data.percentage_threshold}, because a percentage implies a
             precision this sample does not support
@@ -152,13 +152,21 @@ function TermRow({
   strings: QuorumStrings
 }) {
   const [drilled, setDrilled] = useState<DrillRecord[] | null>(null)
+  const [open, setOpen] = useState(true)
   const [drillError, setDrillError] = useState<string | null>(null)
   const absent = row.answered_n === 0
   const gated = row.display_kind === 'low_confidence'
   const nextDrillSignal = useAbortOnUnmount() // #38: drill-through is click-driven
 
   async function drill() {
-    if (drilled || absent || gated) return
+    if (absent || gated) return
+    // Toggle, not a one-way door. `aria-expanded` was always wired here, so the component
+    // already claimed to toggle; the early return on `drilled` meant a row opened once and
+    // could never be closed. Records are kept, so re-opening costs no request.
+    if (drilled) {
+      setOpen((o) => !o)
+      return
+    }
     try {
       const response = await fetch('/api/terms/drill', {
         method: 'POST',
@@ -183,7 +191,7 @@ function TermRow({
 
   return (
     <li className={`term${absent ? ' term--absent' : ''}`} data-testid={`term-${row.subject}`}>
-      <button type="button" className="term__hit" onClick={drill} aria-expanded={drilled !== null}>
+      <button type="button" className="term__hit" onClick={drill} aria-expanded={drilled !== null && open}>
         <span className="term__name">{row.subject}</span>
 
         <span className="term__figures">
@@ -232,7 +240,7 @@ function TermRow({
         </p>
       )}
 
-      {drilled && (
+      {drilled && open && (
         <ul className="term__drill">
           {drilled.map((m) => (
             <li key={m.record_id} className="drill" data-testid={`drill-${m.record_id}`}>

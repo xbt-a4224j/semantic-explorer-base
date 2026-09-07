@@ -267,7 +267,7 @@ export function Explore({
 
   return (
     <div className="explore">
-      <ExplainerPanel id="explore" title="What this tab is for: finding comparable deals">
+      <ExplainerPanel id="explore" title={`What this tab is for: ${strings.tabs.explore.hint}`}>
         {explainer}
       </ExplainerPanel>
       {/* demo script 1 beat 1: what is loaded, before any interaction. An empty-looking rail
@@ -282,10 +282,10 @@ export function Explore({
           ref={searchRef}
           className="explore__input"
           type="search"
-          placeholder="Describe the deal in front of you…"
+          placeholder={strings.searchPlaceholder ?? `Describe the ${strings.record} in front of you…`}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          aria-label="describe the deal"
+          aria-label={`describe the ${strings.record}`}
         />
         {results && (
           <p className="explore__resolved" data-testid="resolved-query">
@@ -344,7 +344,7 @@ export function Explore({
 
           {!error && !loading && records.length === 0 && (
             <div className="state state--empty">
-              <h3 className="state__title">No comparable deals in this slice</h3>
+              <h3 className="state__title">No comparable {strings.colloquial} in this slice</h3>
               <p className="state__body">
                 {activeCount === 0
                   ? 'The corpus is loaded but returned nothing for this description.'
