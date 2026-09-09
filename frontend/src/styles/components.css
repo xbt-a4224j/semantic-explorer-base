@@ -1421,7 +1421,10 @@
 .abl { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .abl__row {
   display: grid;
-  grid-template-columns: minmax(180px, 2fr) 3fr auto;
+  /* The label column is capped rather than proportional: at 2fr it grew with the viewport and
+     pushed every bar into the middle of the page, so the eye had to cross a gap to compare
+     lengths. Comparison is the whole job of this chart. */
+  grid-template-columns: minmax(160px, 34ch) minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--pad-sm);
 }
