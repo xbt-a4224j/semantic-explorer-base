@@ -333,7 +333,15 @@
 /* not an error — the label exists, MAUD just located no range for it */
 .dp__missing { font-size: 11px; color: var(--ink-tertiary); font-style: italic; }
 
-.card__score { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.card__score {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  /* Fixed width + tabular figures so the decimals stack vertically down the list: that is what
+     makes a flat ranker visibly flat at a glance, rather than something you work out by
+     reading each row. */
+  flex: 0 0 auto; min-width: 4.5ch; text-align: right;
+  padding-left: var(--pad-md); margin-left: var(--pad-sm);
+  border-left: 1px solid var(--line); color: var(--ink);
+}
 
 .card__scores {
   display: flex; gap: var(--pad-md); flex-wrap: wrap;
@@ -1377,3 +1385,48 @@
 .ask__drill { padding: 0 0 var(--pad-sm) var(--pad-md); }
 
 .ask__drill ul { list-style: none; margin: 0; padding: 0; }
+
+/* The slice-vs-corpus comparison on a rollup position. Muted by default because most rows are
+   unremarkable; only a delta worth reading gets weight. */
+.term__baseline { font-size: 11px; color: var(--muted); margin-left: var(--pad-sm); }
+.term__up   { color: #8a3324; }
+.term__down { color: #0a7d47; }
+
+/* Starter questions on Ask. A grid of real questions with the result each returns, so the
+   first thing a visitor sees is what the corpus can answer, not an empty box. */
+.ask__tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--pad-sm);
+  margin-bottom: var(--pad-md);
+}
+.ask__tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: var(--pad-sm);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--surface);
+  cursor: pointer;
+  font: inherit;
+}
+.ask__tile:hover { border-color: var(--accent, #444); background: var(--surface-2, var(--surface)); }
+.ask__tile-q { color: var(--ink); }
+.ask__tile-a { color: var(--ink-muted); font-variant-numeric: tabular-nums; font-size: 0.85em; }
+
+/* The interpretation ablation. A bar per prompt change, read top to bottom as it was
+   measured, so the reader watches the number move instead of being handed a headline. */
+.abl { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.abl__row {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) 3fr auto;
+  align-items: center;
+  gap: var(--pad-sm);
+}
+.abl__label { color: var(--ink); }
+.abl__ship { color: var(--accent); font-weight: 600; }
+.abl__bar { background: var(--surface-2); height: 12px; border-radius: 2px; overflow: hidden; }
+.abl__fill { display: block; height: 100%; background: var(--accent); border-radius: 0 2px 2px 0; }
+.abl__num { color: var(--ink-muted); font-variant-numeric: tabular-nums; }

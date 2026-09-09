@@ -115,14 +115,18 @@ export function RecordCard({
       >
         <span className="card__title">{render.title?.(record) ?? record.record_id}</span>
 
-        <span className="card__meta">
-          {render.meta?.(record)}
-          {record.score !== null && (
-            <span className="card__score" title="hybrid score within the filtered set">
-              {record.score.toFixed(3)}
-            </span>
-          )}
-        </span>
+        <span className="card__meta">{render.meta?.(record)}</span>
+
+        {/* Its own column, not the tail of the meta run. Sitting last among "IL · incident in
+            NY · $64,100" it read as one more attribute of the claim rather than as how this
+            ranker scored it — and the SHAPE of the column is the point: a top-25 spanning
+            1.000→0.966 means the ranker found nothing in particular, one spanning 1.000→0.756
+            found real separation. That comparison is unreadable unless the numbers line up. */}
+        {record.score !== null && (
+          <span className="card__score" title="rank score within the filtered set, 1.000 = best">
+            {record.score.toFixed(3)}
+          </span>
+        )}
       </button>
 
       {expanded && (

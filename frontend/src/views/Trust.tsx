@@ -53,6 +53,7 @@ interface Artefact {
 export function Trust({
   strings,
   accuracyChartCopy,
+  ablation,
 }: {
   /** The domain's nouns. Passed, not injected — see strings.ts. */
   strings: QuorumStrings
@@ -67,6 +68,18 @@ export function Trust({
     reportable: number
     total: number
   }) => { title: string; note: React.ReactNode }
+  /**
+   * The interpretation ablation: what each prompt change actually bought.
+   *
+   * A single accuracy figure is the least useful thing a selection harness produces. It cannot
+   * be acted on, it invites comparison against benchmarks measured on other corpora, and it
+   * hides the fact that most of the score came from two specific decisions. The deltas can be
+   * acted on, so they are what the tab reports.
+   *
+   * Domain-supplied because the interventions are the domain's prompt and its answer key. The
+   * platform owns the frame and the ordering rule (worst first, shipped last), not the rows.
+   */
+  ablation?: Ablation
 }) {
   const [calibration, setCalibration] = useState<CalibrationResponse | null>(null)
   const [labels, setLabels] = useState<CalibrationLabels | null>(null)
@@ -159,6 +172,7 @@ export function Trust({
       <LoopSection labels={labels} strings={strings} />
       <DisagreementChart labels={labels} />
       <SelectionQualityChart summary={selection} />
+      <AblationChart ablation={ablation} />
       <OperatorSection />
     </div>
   )
@@ -216,6 +230,18 @@ function AccuracyChart({
     reportable: number
     total: number
   }) => { title: string; note: React.ReactNode }
+  /**
+   * The interpretation ablation: what each prompt change actually bought.
+   *
+   * A single accuracy figure is the least useful thing a selection harness produces. It cannot
+   * be acted on, it invites comparison against benchmarks measured on other corpora, and it
+   * hides the fact that most of the score came from two specific decisions. The deltas can be
+   * acted on, so they are what the tab reports.
+   *
+   * Domain-supplied because the interventions are the domain's prompt and its answer key. The
+   * platform owns the frame and the ordering rule (worst first, shipped last), not the rows.
+   */
+  ablation?: Ablation
 }) {
   if (!calibration || calibration.results.length === 0) return null
   // The grader emits worst-first, because the ordering is a finding about the extractor. This
@@ -496,6 +522,92 @@ function DisagreementChart({ labels }: { labels: CalibrationLabels | null }) {
  * Refusal accuracy carries a direct label naming it the weak one. No red and no alarm styling:
  * it is a measurement, not an incident.
  */
+/** One row of the interpretation ablation: a prompt change and what it scored. */
+export interface AblationStep {
+  /** What changed. Written as the intervention, not as a version number. */
+  label: string
+  /** Correct out of `outOf`. */
+  score: number
+  /** Of the subset that has a right answer. */
+  answerable: number
+  /** True for the row that describes what the app currently does. */
+  shipped?: boolean
+}
+
+export interface Ablation {
+  outOf: number
+  answerableOutOf: number
+  steps: AblationStep[]
+  /** Named, not summarised. The remaining failures, in plain words. */
+  misses: React.ReactNode
+  /** Where the numbers came from, so a reader can rerun them. */
+  provenance: React.ReactNode
+}
+
+/**
+ * 5 — what each intervention bought.
+ *
+ * Ordered as it was measured, so the reader watches the number move rather than being handed
+ * its final value. The shipped row is marked and is not the largest number in the column: the
+ * change that scored highest also declined five real questions, and that trade is the finding.
+ */
+function AblationChart({ ablation }: { ablation?: Ablation }) {
+  if (!ablation) return null
+  const max = ablation.outOf
+  return (
+    <section className="trust__section">
+      <ChartFrame
+        testId="trust-ablation"
+        title="What each change bought"
+        note={
+          <>
+            The same {max} questions, one prompt change at a time. Two decisions account for most
+            of the movement; the rest is noise dressed as progress.
+          </>
+        }
+        footnote={<>{ablation.misses} {ablation.provenance}</>}
+        table={
+          <table className="admin__table">
+            <thead>
+              <tr>
+                <th>change</th>
+                <th>total /{ablation.outOf}</th>
+                <th>answerable /{ablation.answerableOutOf}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ablation.steps.map((st) => (
+                <tr key={st.label}>
+                  <td>{st.label}</td>
+                  <td className="mono">{st.score}</td>
+                  <td className="mono">{st.answerable}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        }
+      >
+        <ul className="abl">
+          {ablation.steps.map((st) => (
+            <li className="abl__row" key={st.label}>
+              <span className="abl__label">
+                {st.label}
+                {st.shipped && <strong className="abl__ship"> — what the app does</strong>}
+              </span>
+              <span className="abl__bar" aria-hidden="true">
+                <span className="abl__fill" style={{ width: `${(st.score / max) * 100}%` }} />
+              </span>
+              <span className="abl__num mono">
+                {st.score}/{max}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </ChartFrame>
+    </section>
+  )
+}
+
 function SelectionQualityChart({ summary }: { summary: MeasureSelectionSummary | null }) {
   if (!summary) return null
   const data = [

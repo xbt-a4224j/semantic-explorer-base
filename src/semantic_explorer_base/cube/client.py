@@ -104,3 +104,48 @@ def meta(cube_url: str, timeout: float = 20.0) -> dict[str, Any]:
         duration_ms=round((time.perf_counter() - started) * 1000, 1),
     )
     return body
+
+
+def sql(payload: dict[str, Any], cube_url: str, timeout: float = 20.0) -> dict[str, Any]:
+    """The SQL Cube WOULD run for this selection, compiled but not executed (`/sql`).
+
+    Promoted from the reference application (#12), where its own docstring explained the
+    accident: *"Not in the platform's client because nothing there needed it."* That is a fact
+    about which domain was built first. `/meta` and `/load` are already here and this is the
+    third endpoint of the same API; it carries no corpus knowledge, and every domain that wants
+    to show a reader the query behind an answer needs exactly this.
+
+    Showing the SQL costs one extra call and touches no data — the endpoint compiles and returns.
+    That is what makes a receipt panel affordable enough to leave on by default, and a receipt
+    nobody has to opt into is the only kind that gets read.
+
+    **The statement and its bound parameters are returned separately, and that is the point.**
+    Filter values are never concatenated into the string. Flattening them into one interpolated
+    statement for display would show the reader something the warehouse never ran, and would
+    quietly document string-built SQL as this project's house style.
+
+    `cache_key_queries` are Cube's `MAX(updated_at)` probes: the queries that decide whether a
+    cached answer is still fresh. They belong in a receipt because they are what actually
+    determined that this answer could be served, as opposed to how it would be computed.
+
+    Degrades to empty strings rather than raising. A receipt is a secondary surface beside an
+    answer that already succeeded; a malformed body here must not take that answer down with it,
+    which is why this does not share `query`'s `CubeUnavailable` path.
+    """
+    response = httpx.get(
+        f"{cube_url}/sql",
+        params={"query": json.dumps(payload)},
+        timeout=timeout,
+    )
+    response.raise_for_status()
+    body = response.json().get("sql") or {}
+    # Cube returns [statement, params] and has shipped a third element in some versions. Slicing
+    # to two rather than unpacking is deliberate: an unpack would raise on the day a version adds
+    # one, taking down the panel that exists to explain the answer.
+    statement, params = (body.get("sql") or ["", []])[:2]
+    return {
+        "sql": statement,
+        "params": list(params or []),
+        # Each probe is [statement, params, options]; the receipt shows the statement.
+        "cache_key_queries": [q[0] for q in body.get("cacheKeyQueries") or [] if q],
+    }

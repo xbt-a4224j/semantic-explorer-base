@@ -19,6 +19,11 @@ from semantic_explorer_base.retrieval.hybrid import (
     normalize,
     tokenize,
 )
+from semantic_explorer_base.retrieval.ranking import (
+    matched_nothing,
+    ranked_by,
+    unmatched_label,
+)
 
 __all__ = [
     "DEFAULT_ALPHA",
@@ -28,6 +33,9 @@ __all__ = [
     "Scored",
     "content_key",
     "default_cache",
+    "matched_nothing",
     "normalize",
+    "ranked_by",
     "tokenize",
+    "unmatched_label",
 ]

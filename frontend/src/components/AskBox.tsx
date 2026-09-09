@@ -341,10 +341,18 @@ function AnswerRows({
   )
 }
 
+/** One starter question, with the observed result so a reader knows what to expect. */
+export interface AskExample {
+  question: string
+  /** What comes back. Written from an actual run, not from a guess. */
+  expect: string
+}
+
 export function AskBox({
   strings,
   onAsked,
   onDrill,
+  examples = [],
 }: {
   /** The domain's nouns. Passed, not injected — see strings.ts. */
   strings: QuorumStrings
@@ -355,6 +363,11 @@ export function AskBox({
    * hard-codes a drill endpoint has stopped being domain-free.
    */
   onDrill?: (subject: string, position: string) => Promise<DrillResult>
+  /**
+   * Starter questions. Content is the domain's — the platform knows no legal or claims
+   * vocabulary — so this arrives as a prop rather than a list checked in here.
+   */
+  examples?: AskExample[]
 }) {
   // Pre-filled, not just a placeholder: a first-time visitor should be able to press Enter and
   // see the whole loop run, rather than stare at an empty box and have to compose a question
@@ -587,6 +600,28 @@ export function AskBox({
           {asking ? 'interpreting…' : 'Interpret'}
         </button>
       </div>
+
+      {examples.length > 0 && !asked && !asking && (
+        <div className="ask__tiles" data-testid="ask-tiles">
+          {examples.map((ex) => (
+            <button
+              type="button"
+              key={ex.question}
+              className="ask__tile"
+              onClick={() => {
+                setQuestion(ex.question)
+                setAsked(null)
+                setAskError(null)
+                setResult(null)
+                setRunError(null)
+              }}
+            >
+              <span className="ask__tile-q">{ex.question}</span>
+              <span className="ask__tile-a">{ex.expect}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {asking && !asked && (
         <div className="skeleton skeleton--row" aria-label="interpreting the question" />

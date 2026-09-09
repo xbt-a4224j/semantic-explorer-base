@@ -133,7 +133,7 @@ export function Rollup({
 
           <ul className="terms__list">
             {data.rows.map((row) => (
-              <TermRow key={row.subject} row={row} selection={selection} strings={strings} />
+              <TermRow key={row.subject} row={row} selection={selection} />
             ))}
           </ul>
         </>
@@ -145,11 +145,9 @@ export function Rollup({
 function TermRow({
   row,
   selection,
-  strings,
 }: {
   row: RollupRow
   selection: string[]
-  strings: QuorumStrings
 }) {
   const [drilled, setDrilled] = useState<DrillRecord[] | null>(null)
   const [open, setOpen] = useState(true)
@@ -222,6 +220,31 @@ function TermRow({
             <li key={p.position} className="term__position">
               <span className="term__poslabel">{p.position}</span>
               <span className="mono muted">n={p.n}</span>
+              {/* The slice share against the corpus share. A distribution with no baseline is
+                  uninterpretable: "Fraud Reported Y = 35 of 100" reads as a finding until you
+                  know the corpus rate is 24.7%, at which point it becomes one. Rendered only
+                  when the two differ enough to mean something — a delta inside a couple of
+                  points is noise, and printing it invites a reader to over-read it. */}
+              {(() => {
+                const base = row.corpus_answered_n ?? 0
+                const slice = row.answered_n ?? 0
+                if (!base || !slice || p.corpus_n === undefined) return null
+                const here = (p.n / slice) * 100
+                const corpus = (p.corpus_n / base) * 100
+                const delta = here - corpus
+                return (
+                  <span className="term__baseline mono">
+                    {here.toFixed(0)}% vs {corpus.toFixed(0)}% corpus
+                    {Math.abs(delta) >= 5 && (
+                      <b className={delta > 0 ? 'term__up' : 'term__down'}>
+                        {' '}
+                        {delta > 0 ? '+' : ''}
+                        {delta.toFixed(0)}
+                      </b>
+                    )}
+                  </span>
+                )
+              })()}
             </li>
           ))}
         </ul>
@@ -229,8 +252,7 @@ function TermRow({
 
       {absent && (
         <p className="term__absent">
-          No {strings.record} in this set carries a labelled answer for this{' '}
-          {strings.subject}. Absence is a finding, so the row stays.
+          No answer recorded in this set.
         </p>
       )}
 

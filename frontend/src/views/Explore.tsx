@@ -4,7 +4,6 @@ import { RecordCard, type RecordRenderers } from '../components/RecordCard'
 import { ResultsSkeleton } from '../index'
 import type { ComparablesResponse, CorpusCounts, FacetsResponse, CorpusRecord, JourneySeed } from '../types'
 import { ignoreAbort } from '../index'
-import { ExplainerPanel } from '../components/ExplainerPanel'
 import type { QuorumStrings } from '../strings'
 
 
@@ -38,9 +37,6 @@ interface Props {
   /** The domain's nouns, forwarded to every component that renders a word. */
   strings: QuorumStrings
 
-  /** This corpus's own explanation of what the tab is for. Prose about a corpus is the one
-   *  thing a shared view cannot supply — see explainers in the domain repo. */
-  explainer?: React.ReactNode
   /** This corpus's own provenance line — which sources, what date range, what is
    *  inferred. A claim about the corpus, so it cannot be the platform's. */
   corpusStrip?: (counts: CorpusCounts) => React.ReactNode
@@ -77,6 +73,16 @@ interface Props {
    * would demonstrate a capability the search endpoint does not have.
    */
   rankers?: readonly { name: string; tone: string; alpha: number; why: string }[]
+
+  /**
+   * A query to open the tab already ranking. The rank-by control is gated on there being a
+   * description — correct, since a blend weight over nothing is a knob attached to nothing —
+   * but it also meant the two-ranker comparison, the most interesting thing on this tab, was
+   * invisible until a reader happened to type. A domain that has a measured query worth
+   * showing can stage it here. Editable and clearable like anything typed; omit it and the
+   * tab opens empty as before.
+   */
+  seedDescription?: string
 }
 
 /**
@@ -104,15 +110,14 @@ const EMPTY: ExploreFilters = {}
  * BM25's spread is about 25x cosine's, so blending the raw numbers makes alpha a decoration.
  */
 export function Explore({
-  explainer,
   corpusStrip,
   strings,
   toRequestFilters,
   describeQuery: describeQueryProp,
   rankers,
-  render, searchRef, onSelectionChange, seedFilters, onSeedConsumed }: Props) {
+  render, searchRef, onSelectionChange, seedFilters, onSeedConsumed, seedDescription }: Props) {
   const [filters, setFilters] = useState<ExploreFilters>(EMPTY)
-  const [description, setDescription] = useState('')
+  const [description, setDescription] = useState(seedDescription ?? '')
   const [facets, setFacets] = useState<FacetsResponse | null>(null)
   const [results, setResults] = useState<ComparablesResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -123,7 +128,16 @@ export function Explore({
   // something if the reader can turn each half off and watch the ranking move. The endpoint
   // has always taken `alpha`; until now nothing on a user path sent it, so the two halves
   // were an implementation detail rather than a thing anyone could check.
-  const [alpha, setAlpha] = useState<number>(0.5)
+  // The selected position must always be ON the preset list. A hardcoded 0.5 was the Hybrid
+  // position; when a domain dropped that preset the first query still ran at 0.5 with neither
+  // remaining button selected and an empty "why" line — a two-button control silently driving
+  // a third mode. Falling back to `rankers[0]` fixed that and broke something else: a domain
+  // listing Keyword first then opened on pure BM25, which is the one mode that makes hybrid
+  // retrieval look pointless. So: prefer the blend when the domain offers it, otherwise the
+  // first preset, and only then the literal.
+  const [alpha, setAlpha] = useState<number>(
+    rankers?.find((r) => r.alpha === 0.5)?.alpha ?? rankers?.[0]?.alpha ?? 0.5,
+  )
   const listRef = useRef<HTMLUListElement>(null)
 
   const activeCount = Object.values(filters).filter(Boolean).length
@@ -179,7 +193,11 @@ export function Explore({
       // candidate_count for records the partner never asked about.
       ...comparablesFilters,
       ...(rankers ? { alpha } : {}),
-      limit: 25,
+      // 200 (the endpoint's max), not 25. The selection this view exports is what the rollup
+      // tab rolls up, so a 25-cap meant a 26-record slice was rolled up over 25 of them and
+      // labelled "25 of 25" — an incomplete set presented as complete, in a product whose claim
+      // is that every figure carries its denominator. Display is paged separately.
+      limit: 200,
     }
 
     Promise.all([
@@ -267,9 +285,6 @@ export function Explore({
 
   return (
     <div className="explore">
-      <ExplainerPanel id="explore" title={`What this tab is for: ${strings.tabs.explore.hint}`}>
-        {explainer}
-      </ExplainerPanel>
       {/* demo script 1 beat 1: what is loaded, before any interaction. An empty-looking rail
           could be a small corpus or a broken ingest; these tell the two apart.
           #35: a figure with no source is unverifiable — but WHICH sources and whether any of
@@ -310,8 +325,11 @@ export function Explore({
                   onClick={() => setAlpha(r.alpha)}
                   title={r.why}
                 >
+                  {/* No α chip. With two exclusive positions alpha is a boolean choosing a
+                      ranker; a number on a boolean is noise to a reader and an invitation to
+                      an engineer to ask for the 0.3 the UI no longer offers. `alpha` stays the
+                      API's real parameter and the measured value in RETRIEVAL.md. */}
                   {r.name}
-                  <span className="rank__alpha mono">α={r.alpha}</span>
                 </button>
               ))}
             </div>
@@ -358,9 +376,18 @@ export function Explore({
 
           {!error && !loading && records.length > 0 && (
             <>
+              {/* Was: "showing 25 of 352 matching · n=352". Two defects in one line.
+                  (1) `candidate_count` was printed TWICE — as the "of" and again as the `n` —
+                      so the same denominator was rendered as if it were two facts. That is #34's
+                      failure in its purest form: identical numbers, different-looking claims.
+                  (2) "matching" was a lie about causation. A text query RANKS, it never filters;
+                      352 is what the FACETS narrowed to. Saying "matching" credits the search for
+                      a number the filters produced, which is exactly the kind of quietly-wrong
+                      attribution this product exists to prevent. */}
               <p className="explore__count">
-                showing {records.length} of {results?.candidate_count ?? records.length} matching ·{' '}
-                <span className="muted">n={results?.candidate_count ?? records.length}</span>
+                showing {records.length} of{' '}
+                <span className="muted">n={results?.candidate_count ?? records.length}</span>{' '}
+                {description.trim() ? 'ranked by relevance' : 'in this slice'}
               </p>
               <ul className="explore__list" ref={listRef}>
                 {records.map((record, i) => (

@@ -116,6 +116,8 @@ export interface RecordDetail {
 export interface PositionCount {
   position: string
   n: number
+  /** How many records answer this way corpus-wide — the baseline a slice is read against. */
+  corpus_n?: number
 }
 
 export interface NumericSummary {
@@ -134,6 +136,9 @@ export interface RollupRow {
   display: string
   display_kind: 'count' | 'percentage' | 'low_confidence'
   positions: PositionCount[]
+  /** Corpus-wide total for THIS subject — records carrying any answer, not the whole corpus.
+   *  The denominator the slice's shares are compared against. */
+  corpus_answered_n?: number
   numeric: NumericSummary | null
   gate_note: string | null
 }

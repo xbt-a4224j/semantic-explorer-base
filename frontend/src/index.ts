@@ -56,6 +56,8 @@ export { Shell } from './components/Shell'
 export type { ShellProps, ShellSearch, ShellStatus } from './components/Shell'
 export { FacetRail } from './components/FacetRail'
 export { AskBox } from './components/AskBox'
+export type { AskExample } from './components/AskBox'
+export type { Ablation, AblationStep } from './views/Trust'
 export { Grading } from './components/Grading'
 export { IngestStatus, LogViewer } from './components/operator'
 
