@@ -217,65 +217,11 @@ function Answer({
   return <p className="qb__hint">No rows.</p>
 }
 
-/**
- * The vocabulary is an enum in the structured-output schema, so an invalid measure name is
- * *undecodable* rather than discouraged — and the server rejects anything arriving by another
- * door before Cube is touched. Both are claims about a mechanism a reader cannot check from the
- * outside. This posts a name that does not exist and shows the refusal verbatim. One click beats
- * a paragraph asserting it.
- */
-function InvalidMeasureProbe({ real, endpoint }: { real: string; endpoint: string }) {
-  const [result, setResult] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const typo = `${real}_typo`
-
-  async function probe() {
-    setBusy(true)
-    try {
-      const r = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ measures: [typo], dimensions: [], filters: [] }),
-      })
-      const body = await r.json()
-      setResult(`${r.status} — ${body?.detail ?? body?.error?.message ?? JSON.stringify(body)}`)
-    } catch (e) {
-      setResult((e as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div data-testid="invalid-probe">
-      <p className="receipt__h" style={{ marginTop: 12 }}>
-        is the vocabulary really closed?
-      </p>
-      <button type="button" className="qb__linkbtn" onClick={probe} disabled={busy}>
-        {busy ? 'asking…' : `ask for ${typo}, a measure that does not exist`}
-      </button>
-      {result && (
-        <p className="receipt__note mono" data-testid="invalid-probe-result">
-          {result}
-        </p>
-      )}
-      <p className="receipt__note">
-        The model cannot emit that name — it is an <span className="mono">enum</span> in the
-        structured-output schema, so an invalid member is undecodable rather than discouraged. The
-        server refuses it anyway, before Cube is touched, because a guarantee that holds only when
-        the model behaves is not a guarantee.
-      </p>
-    </div>
-  )
-}
-
 function ReceiptPanel({
   receipt,
-  runEndpoint,
   otherGrainNote,
 }: {
   receipt: AskReceipt
-  runEndpoint: string
   otherGrainNote: (og: { measure: string; value: string; asked: string }) => ReactNode
 }) {
   return (
@@ -344,10 +290,6 @@ function ReceiptPanel({
                 confirm anything. Any other tier is a <em>guess</em>, and a guess stops and asks.
               </p>
             </>
-          )}
-
-          {receipt.measures[0] && (
-            <InvalidMeasureProbe real={receipt.measures[0]} endpoint={runEndpoint} />
           )}
         </div>
 
@@ -436,7 +378,6 @@ export function AskConsole({
   refusalHint,
   otherGrainNote,
   askEndpoint = '/api/ask',
-  runEndpoint = '/api/agent/run-selection',
   seed = null,
   onSeedConsumed,
   onDrill,
@@ -451,7 +392,6 @@ export function AskConsole({
   refusalHint: (threshold: number | null) => ReactNode
   otherGrainNote: (og: { measure: string; value: string; asked: string }) => ReactNode
   askEndpoint?: string
-  runEndpoint?: string
   /** A question submitted on arrival — how an Overview journey lands here already answered. */
   seed?: string | null
   onSeedConsumed?: () => void
@@ -599,11 +539,7 @@ export function AskConsole({
           ) : (
             <>
               {response.receipt && (
-                <ReceiptPanel
-                  receipt={response.receipt}
-                  runEndpoint={runEndpoint}
-                  otherGrainNote={otherGrainNote}
-                />
+                <ReceiptPanel receipt={response.receipt} otherGrainNote={otherGrainNote} />
               )}
               <Answer
                 response={response}
