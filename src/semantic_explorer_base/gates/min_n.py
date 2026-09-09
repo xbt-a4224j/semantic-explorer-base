@@ -59,6 +59,7 @@ def apply(
     count_measures: tuple[str, ...],
     min_n: int,
     grouped: bool,
+    records_in_scope: int | None = None,
 ) -> GateResult:
     """Refuse an ungrouped thin result; suppress thin cells in a grouped one.
 
@@ -71,6 +72,23 @@ def apply(
     small. That is inherent to publishing a suppression notice at all, and it is the trade every
     disclosure-control system makes.
     """
+    # A count measure is only a disclosure control if it counts RECORDS. Several legitimately
+    # gated counts do not: one that counts answer rows reported n=13 for a slice holding a
+    # single agreement, cleared a threshold of 5, and served one named party's negotiated
+    # terms. When the caller knows how many records the scope actually holds, that number
+    # decides — it is the only one the threshold was ever about.
+    if records_in_scope is not None and records_in_scope < min_n:
+        return GateResult(
+            rows=[],
+            n=records_in_scope,
+            refused=True,
+            threshold=min_n,
+            message=(
+                f"n={records_in_scope} — insufficient to characterize (threshold {min_n}). "
+                f"The same gate applies to the dashboard and to a direct API call."
+            ),
+        )
+
     if grouped:
         kept = [r for r in rows if _clears(r, count_measures, min_n)]
         dropped = len(rows) - len(kept)

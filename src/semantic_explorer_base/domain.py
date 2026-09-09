@@ -152,6 +152,19 @@ class Domain:
     #: Free-form, for the UI. The platform does not read these.
     strings: dict[str, Any] = field(default_factory=dict)
 
+    #: Dimensions that name an individual record's parties, and therefore must never be a
+    #: GROUPING key in the aggregate layer.
+    #:
+    #: `min_n` gates on counts, so a selection with no count has nothing to gate on. That is
+    #: correct for a median-only selection and a total bypass here: grouped by a party name,
+    #: every row is one record, n=1 by construction, and the gate reads no count to refuse on.
+    #: An adversarial review reached 152 rows of named target, named acquirer and negotiated
+    #: answer with `refused: false` by asking for LESS rather than more.
+    #:
+    #: Filtering *to* one party stays legal — that path hits `min_n` and refuses at n=1, which
+    #: is the behaviour the reference domain demonstrates on purpose. The leak is grouping BY.
+    identifying_dimensions: tuple[str, ...] = ()
+
     @property
     def gated_counts(self) -> tuple[str, ...]:
         """Every count the min_n gate reads. Never empty."""

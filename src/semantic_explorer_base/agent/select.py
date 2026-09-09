@@ -242,9 +242,22 @@ def validate_selection(
                 f"{required!r} so each row stays inside one unit.",
                 selection,
             )
+    identifying = frozenset(getattr(domain, "identifying_dimensions", ()) or ()) if domain else frozenset()
     for dimension in selection.get("dimensions", []):
         if dimension not in vocabulary.dimensions:
             raise InvalidSelection(f"{dimension!r} is not a known dimension.", selection)
+        if dimension in identifying:
+            # Refused here rather than in `min_n`, because the gate reads counts and this
+            # selection need not carry one. Grouped by a party name every row is a single
+            # record, so there is no aggregate to characterise and nothing for a threshold
+            # to bite on — the result is a list of named parties and their negotiated terms.
+            raise InvalidSelection(
+                f"{dimension!r} names the parties to individual records, so grouping by it "
+                f"returns one row per record rather than an aggregate — the analytics layer "
+                f"will not serve that. Filter to a value instead, and the sample-size gate "
+                f"applies as it does everywhere else.",
+                selection,
+            )
     for f in selection.get("filters", []):
         if f.get("member") not in allowed:
             raise InvalidSelection(f"{f.get('member')!r} is not a selectable field.", selection)
