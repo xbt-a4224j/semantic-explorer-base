@@ -229,7 +229,12 @@ export interface DrillResult {
  * Rows without an answer dimension (a bare count) are shown as a figure and nothing more —
  * there is no subject to drill and pretending otherwise would offer a dead button.
  */
-function AnswerRows({
+/**
+ * Exported so `AskConsole` renders a distribution the SAME way this component does, drill and
+ * quoted clause included. It was private, and the one-shot console was about to grow a second
+ * distribution renderer that would have drifted from this one within a release.
+ */
+export function AnswerRows({
   rows,
   query,
   strings,
@@ -238,7 +243,16 @@ function AnswerRows({
   rows: Record<string, unknown>[]
   query: { dimensions: string[]; filters: { member: string; values: string[] }[] } | null | false | undefined
   strings: QuorumStrings
-  onDrill?: (subject: string, position: string) => Promise<DrillResult>
+  onDrill?: (
+    subject: string,
+    position: string,
+    /**
+     * The scope the answer was computed under. Added 2026-09-08: without it a drill runs
+     * corpus-wide, so a distribution scoped to one industry listed records from every other
+     * one and the count disagreed with the list beneath it.
+     */
+    scope?: { member: string; values: string[] }[],
+  ) => Promise<DrillResult>
 }) {
   const [open, setOpen] = useState<string | null>(null)
   const [drilled, setDrilled] = useState<Record<string, DrillResult>>({})
@@ -259,6 +273,12 @@ function AnswerRows({
         (f) => f.values?.length === 1 && f.member !== answerDim && f.member.split('.')[0] === cube,
       )?.values[0]) ||
     null
+  // Everything the answer was scoped BY, which is every filter outside the answer's own cube.
+  // `subject` above is the same-cube filter (the deal point); these are the record-level ones,
+  // and they are what a corpus-wide drill was silently ignoring.
+  const scope = ((query && query.filters) || [])
+    .filter((f) => f.member !== answerDim && f.member.split('.')[0] !== cube)
+    .map((f) => ({ member: f.member, values: f.values ?? [] }))
   const canDrill = Boolean(onDrill && answerDim && subject)
 
   async function drill(position: string) {
@@ -271,7 +291,7 @@ function AnswerRows({
     if (drilled[position]) return
     setBusy(position)
     try {
-      const hit = await onDrill(subject, position)
+      const hit = await onDrill(subject, position, scope)
       setDrilled((d) => ({ ...d, [position]: hit }))
     } finally {
       setBusy(null)
@@ -362,7 +382,16 @@ export function AskBox({
    * the domain's, and omitting it simply leaves the rows unclickable — a platform that
    * hard-codes a drill endpoint has stopped being domain-free.
    */
-  onDrill?: (subject: string, position: string) => Promise<DrillResult>
+  onDrill?: (
+    subject: string,
+    position: string,
+    /**
+     * The scope the answer was computed under. Added 2026-09-08: without it a drill runs
+     * corpus-wide, so a distribution scoped to one industry listed records from every other
+     * one and the count disagreed with the list beneath it.
+     */
+    scope?: { member: string; values: string[] }[],
+  ) => Promise<DrillResult>
   /**
    * Starter questions. Content is the domain's — the platform knows no legal or claims
    * vocabulary — so this arrives as a prop rather than a list checked in here.

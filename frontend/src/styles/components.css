@@ -1433,3 +1433,72 @@
 .abl__bar { background: var(--surface-2); height: 12px; border-radius: 2px; overflow: hidden; }
 .abl__fill { display: block; height: 100%; background: var(--accent); border-radius: 0 2px 2px 0; }
 .abl__num { color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+
+/* The Ask receipt: what the model chose, and what Postgres was asked to compute from it.
+   Ported from claims-explorer 2026-09-08 along with the component. The panel is deliberately
+   plain — the argument is the SIZE of the gap between the two halves, and syntax highlighting
+   would dress the SQL up rather than let it speak. */
+.receipt { margin: var(--pad-sm) 0 var(--pad-md); font-size: 11px; }
+
+.receipt > summary {
+  cursor: pointer; color: var(--ink-muted); font-family: var(--font-mono);
+  padding: var(--pad-sm) 0; list-style: none;
+}
+.receipt > summary::-webkit-details-marker { display: none; }
+.receipt > summary::before { content: '▸ '; }
+.receipt[open] > summary::before { content: '▾ '; }
+.receipt > summary:hover { color: var(--ink); }
+
+.receipt__grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--pad-lg); }
+/* Without this a grid child's min-content width is its longest unbreakable line, so the SQL
+   column pushed the grid wider than the page and squeezed the left column to a ribbon instead
+   of scrolling inside its own box. */
+.receipt__grid > * { min-width: 0; }
+@media (max-width: 900px) { .receipt__grid { grid-template-columns: 1fr; } }
+
+.receipt__h {
+  margin: 0 0 var(--pad-sm); font-size: 10px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--ink-muted);
+}
+
+.receipt__sql {
+  margin: 0; padding: var(--pad-md);
+  background: var(--surface-2, #f6f8fa); border: 1px solid var(--hairline); border-radius: 6px;
+  font-family: var(--font-mono); font-size: 10px; line-height: 1.6; color: var(--ink);
+  /* Wrapped, not scrolled. Cube emits one very long SELECT line, and a horizontal scrollbar
+     hid most of the statement behind a gesture nobody makes — on the panel whose entire job is
+     that the statement can be read. Indentation still survives via pre-wrap. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.receipt__note { margin: var(--pad-sm) 0 0; color: var(--ink-tertiary); line-height: 1.5; }
+.receipt__row { display: flex; gap: var(--pad-sm); align-items: baseline; margin-bottom: 2px; }
+.receipt__tier {
+  font-family: var(--font-mono); font-size: 9px; text-transform: uppercase;
+  letter-spacing: 0.04em; padding: 1px 4px; border-radius: 3px;
+  border: 1px solid var(--hairline); color: var(--ink-muted);
+}
+.receipt__tier--model { border-color: var(--accent); color: var(--accent); }
+.receipt__tier--embedding { border-color: var(--accent); color: var(--accent); }
+
+/* Reviewing a guess. Its own block rather than `.ask__confirm`, which AskBox already owns as a
+   one-line flex row. Only the guessed values land here; a question with none never renders it. */
+.askc {
+  margin: var(--pad-md) 0;
+  padding: var(--pad-md);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--surface-1, #fff);
+  font-size: 12px;
+}
+.askc__lead { margin: 0 0 var(--pad-md); color: var(--ink); line-height: 1.5; }
+.askc__row {
+  display: flex; gap: var(--pad-sm); align-items: baseline;
+  margin-bottom: var(--pad-sm); flex-wrap: wrap;
+}
+.askc__select {
+  font-family: var(--font-mono); font-size: 11px; padding: 2px 4px;
+  border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-1, #fff);
+  color: var(--ink); max-width: 32em;
+}
